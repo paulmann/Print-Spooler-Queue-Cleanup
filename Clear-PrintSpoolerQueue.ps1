@@ -26,6 +26,14 @@ if (-not ([Security.Principal.WindowsPrincipal] `
     Exit 1
 }
 
+# Verify execution policy
+$policy = Get-ExecutionPolicy -Scope CurrentUser
+if ($policy -in @('Restricted','Undefined')) {
+    Write-Error "Current execution policy '$policy' blocks script execution. Run:" `
+        + "`n  Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Unrestricted" 
+    Exit 1
+}
+
 # Define the spooler service name and spool directory path
 $serviceName = 'Spooler'
 $spoolDir     = Join-Path $env:SystemRoot 'System32\spool\PRINTERS'
