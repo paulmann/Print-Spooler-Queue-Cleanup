@@ -1,103 +1,202 @@
-# Print-Spooler-Queue-Cleanup
+# Print Spooler Queue Cleanup Tools
 A PowerShell script to forcibly clear the print spooler queue on Windows systems. It verifies administrative privileges, stops the Print Spooler service, removes spool files, and restarts the service. Designed for Senior System Administrators to streamline print queue maintenance.
-
-# Clear-PrintSpoolerQueue PowerShell Script
 
 ## Table of Contents
 - [Overview](#overview)  
 - [Problem Statement](#problem-statement)  
 - [Solution](#solution)  
+- [Scripts](#scripts)  
+  - [Batch Script: Clear-PrintSpoolerQueue.bat](#batch-script-clear-printspoolerqueuebat)  
+  - [PowerShell Script: Clear-PrintSpoolerQueue.ps1](#powershell-script-clear-printspoolerqueueps1)  
 - [Prerequisites](#prerequisites)  
 - [Installation](#installation)  
 - [Usage](#usage)  
+  - [Running the Batch Script](#running-the-batch-script)  
+  - [Running the PowerShell Script](#running-the-powershell-script)  
+- [Automation and Scheduling](#automation-and-scheduling)  
 - [Script Details](#script-details)  
 - [Error Handling & Logging](#error-handling--logging)  
 - [Author](#author)  
 - [License](#license)  
 
+***
+
 ## Overview  
-`Clear-PrintSpoolerQueue.ps1` is a professional-grade PowerShell script tailored for Senior System Administrators. It automates the **forcible clearing** of Windows Print Spooler queues across all installed printers. The script ensures reliable cleanup of hung or stuck print jobs, minimizing downtime and user support tickets.
+This repository contains two professional-grade tools for **forcible clearing** of Windows Print Spooler queues across all installed printers. Both scripts verify administrative privileges, stop the Print Spooler service, remove all spool files, and restart the service—delivering a consistent, reliable solution for stuck or corrupted print jobs.
 
 ## Problem Statement  
-Print jobs can become **stuck** or **corrupted**, causing the Print Spooler service to hang and preventing all subsequent jobs from processing. Manual intervention—navigating through Services, stopping the spooler, deleting files, and restarting the service—can be time-consuming and error-prone, especially in large environments or during high-support-load periods.
+When print jobs become **stuck** or **corrupted**, the Print Spooler may hang, blocking all subsequent print operations. Manual cleanup—stopping the service, deleting files in the spool directory, and restarting—can be tedious, error-prone, and hard to standardize in enterprise environments.
 
 ## Solution  
-`Clear-PrintSpoolerQueue.ps1` addresses this by:
-- **Verifying administrative privileges**  
-- **Stopping** the Print Spooler service (Spooler)  
-- **Deleting** all spool files (`*.SPL`, `*.SHD`) in the spool directory  
-- **Restarting** the service to resume printing operations  
+These scripts automate the entire process:
+1. **Privilege Check**: Ensures administrative rights.  
+2. **Service Control**: Stops the Spooler service.  
+3. **File Cleanup**: Deletes `*.SPL` and `*.SHD` files from the spool directory.  
+4. **Service Restart**: Restarts the Spooler to resume printing.
 
-This scripted approach ensures consistent results, reduces human error, and can be integrated into scheduled maintenance tasks or remote automation frameworks.
+Consistent automation reduces downtime, minimizes support calls, and can be integrated into remote management or scheduled maintenance.
+
+***
+
+## Scripts
+
+### Batch Script: Clear-PrintSpoolerQueue.bat
+A lightweight, native Windows batch file for rapid deployment on servers and workstations without PowerShell dependencies.  
+📄 [View on GitHub](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/blob/main/Clear-PrintSpoolerQueue.bat)
+
+Key features:
+- Admin privilege detection via `cacls.exe`.
+- Silent service control using `net stop` / `net start`.
+- Forced deletion of spool files (`*.spl`, `*.shd`).
+- Clear console feedback with success/error codes.
+
+***
+
+### PowerShell Script: Clear-PrintSpoolerQueue.ps1
+A robust PowerShell solution leveraging advanced error handling and verbose logging for Senior System Administrators.  
+📄 [View on GitHub](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/blob/main/Clear-PrintSpoolerQueue.ps1)
+
+Key features:
+- WindowsPrincipal check for elevated context.
+- `Stop-Service` / `Start-Service` with `-Force` and `-ErrorAction`.
+- Recursive `Remove-Item` cleanup with error trapping.
+- Verbose and error messages for auditability.
+
+***
 
 ## Prerequisites  
-- **Operating System:** Windows 7, 8, 10, 11, or Server 2008 R2 and newer  
-- **PowerShell Version:** 5.1 or later  
-- **Permissions:** Must be executed with **Administrator** privileges  
+- **Operating System**: Windows 7 / 8 / 10 / 11 or Server 2008 R2 and newer  
+- **Permissions**: Must run as Administrator  
+- **PowerShell Version**: 5.1+ (for the PS1 script)  
+
+***
 
 ## Installation  
-1. Clone or download this repository to your local system or management server.  
-2. Place `Clear-PrintSpoolerQueue.ps1` in a directory of your choice (e.g., `C:\Scripts\`).  
-3. (Optional) Unblock the script if downloaded from the internet:  
+1. Clone or download this repository.  
+2. Place both scripts in a suitable directory (e.g., `C:\Scripts\PrintCleanup`).  
+3. (Optional) Unblock downloaded scripts:
    ```powershell
-   Unblock-File -Path 'C:\Scripts\Clear-PrintSpoolerQueue.ps1'
+   Unblock-File C:\Scripts\PrintCleanup\*.ps1
    ```
 
-## Usage  
+***
+
+## Usage
+
+### Running the Batch Script  
+1. Right-click **Clear-PrintSpoolerQueue.bat** → **Run as administrator**.  
+2. Observe console messages for status and completion.  
+
+### Running the PowerShell Script  
 1. Open **PowerShell** as Administrator.  
-2. Navigate to the script directory:
+2. Navigate to script directory:
    ```powershell
-   cd C:\Scripts
+   cd C:\Scripts\PrintCleanup
    ```
-3. Run the script:
+3. Execute:
    ```powershell
-   .\Clear-PrintSpoolerQueue.ps1
+   .\Clear-PrintSpoolerQueue.ps1 -Verbose
    ```
-4. Observe verbose output for status of each step.  
+4. Review verbose output for detailed steps.
 
-### Integrating with Task Scheduler  
-To automate cleanup during off-hours, create a scheduled task:
-1. Open **Task Scheduler**.  
-2. Create a new task with **highest privileges**.  
-3. Set trigger (e.g., daily at 03:00).  
-4. Action:
-   - Program/script: `powershell.exe`
-   - Arguments: `-NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\Clear-PrintSpoolerQueue.ps1" -Verbose`  
+***
 
-## Script Details  
+## Automation and Scheduling  
+To automate cleanup during off-hours, configure Task Scheduler:
+
+1. Open **Task Scheduler** → **Create Task**.  
+2. Under **General**, select **Run with highest privileges**.  
+3. Under **Triggers**, set desired schedule (e.g., daily at 03:00).  
+4. Under **Actions**, add:
+   - **Program/script**: `powershell.exe`  
+   - **Arguments**: `-NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\PrintCleanup\Clear-PrintSpoolerQueue.ps1" -Verbose`  
+5. Save and enable the task.
+
+For the batch file, point **Program/script** to the `.bat` path.
+
+***
+
+## Script Details
+
+### Clear-PrintSpoolerQueue.bat
+```bat
+@echo off
+:: ----------------------------------------------------------------------------
+:: Forcibly clears the Windows Print Spooler queue.
+:: - Checks for Administrator
+:: - Stops Spooler service
+:: - Deletes *.spl and *.shd
+:: - Restarts Spooler service
+:: Author: Mikhail Deynekin
+:: ----------------------------------------------------------------------------
+
+>nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
+if '%errorlevel%' NEQ '0' (
+    echo ERROR: Administrator privileges required.
+    pause
+    exit /b 1
+)
+
+net stop Spooler >nul 2>&1 || exit /b 1
+timeout /t 3 /nobreak >nul
+del /F /Q "%SystemRoot%\System32\spool\PRINTERS\*.spl" >nul 2>&1
+del /F /Q "%SystemRoot%\System32\spool\PRINTERS\*.shd" >nul 2>&1
+net start Spooler >nul 2>&1 || exit /b 1
+
+echo Cleanup complete.
+exit /b 0
+```
+
+### Clear-PrintSpoolerQueue.ps1
 ```powershell
 <#
 .SYNOPSIS
     Forcibly clears the Windows Print Spooler queue.
 
 .DESCRIPTION
-    Checks for administrative rights, stops the Print Spooler service,
-    deletes all files in the spool directory, and restarts the service.
+    Checks for Administrator, stops Spooler, deletes spool files, restarts service.
 
-.PARAMETER None
-    No parameters. All configuration is internal.
+.AUTHOR
+    Mikhail Deynekin
 
 .NOTES
-    Author: Mikhail Deynekin
-    Requires PowerShell 5.1 or later
-    Run As Administrator
+    Requires PowerShell 5.1+, run as Admin.
 #>
+
+if (-not ([Security.Principal.WindowsPrincipal] `
+    [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(`
+    [Security.Principal.WindowsBuiltinRole]::Administrator)) {
+    Write-Error "Administrator privileges required."
+    Exit 1
+}
+
+$serviceName = 'Spooler'
+$spoolDir     = "$env:SystemRoot\System32\spool\PRINTERS"
+
+Stop-Service -Name $serviceName -Force -ErrorAction Stop
+Start-Sleep -Seconds 3
+Remove-Item -Path "$spoolDir\*" -Force -Recurse -ErrorAction SilentlyContinue
+Start-Service -Name $serviceName -ErrorAction Stop
+
+Write-Output "Print Spooler queue cleared."
 ```
 
-- **Privilege Check**: Ensures the script exits if not run as Administrator.  
-- **Service Control**: Uses `Stop-Service` and `Start-Service` with error handling.  
-- **File Cleanup**: Employs `Remove-Item` to delete spool files in `%SystemRoot%\System32\spool\PRINTERS`.  
-- **Verbose Logging**: All major operations emit verbose messages for auditability.
+***
 
 ## Error Handling & Logging  
-- The script **terminates** on critical failures (unable to stop or start the service).  
-- Non-fatal errors during file deletion will be reported but the service restart is still attempted.  
-- Use the `-Verbose` switch to view detailed processing steps.  
+- **Critical Errors** (service stop/start failures) terminate the script with an error code.  
+- **Non-fatal Errors** during cleanup are logged, but the service restart is still attempted.  
+- Invoke PowerShell with `-Verbose` for detailed logs.
+
+***
 
 ## Author  
 **Mikhail Deynekin**  
+Senior System Administrator & Developer  
 - Email: mid1977@gmail.com  
 - Website: https://deynekin.com  
+
+***
 
 ## License  
 This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
