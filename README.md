@@ -1,7 +1,7 @@
 # Print Spooler Queue Cleanup 🖨️🧹
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/paulmann/Print-Spooler-Queue-Cleanup)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License: CC0-1.0](https://img.shields.io/badge/license-CC0%201.0-lightgrey.svg)](https://creativecommons.org/publicdomain/zero/1.0/)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightblue.svg)]()
 [![PowerShell](https://img.shields.io/badge/powershell-5.1+-orange.svg)](https://docs.microsoft.com/en-us/powershell/)
 
@@ -514,22 +514,18 @@ powershell.exe -NoProfile -NoExecute -Command "& {Get-Command .\Clear-PrintSpool
 
 ## 📄 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+[![License: CC0-1.0](https://img.shields.io/badge/license-CC0%201.0-lightgrey.svg)](https://creativecommons.org/publicdomain/zero/1.0/)
+
+This project is dedicated to the **public domain** under the [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/legalcode).
 
 ```
-MIT License
+To the extent possible under law,
+Mikhail Deynekin has waived all copyright and related or neighboring rights to
+Print Spooler Queue Cleanup.
 
-Copyright (c) 2025 Mikhail Deynekin
+No permission is required to use, copy, modify, merge, publish, distribute, sublicense, or sell copies of this software for any purpose, commercial or non-commercial, and by anyone. Attribution is not required.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+For more information, see: https://creativecommons.org/publicdomain/zero/1.0/
 ```
 
 ## 👨‍💻 Author & Support
