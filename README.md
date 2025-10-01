@@ -3,7 +3,7 @@
 [![License: Public Domain](https://img.shields.io/badge/License-Public%20Domain-brightgreen.svg)](https://creativecommons.org/publicdomain/zero/1.0/)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://docs.microsoft.com/powershell/)
 [![Batch](https://img.shields.io/badge/Batch-CMD-green.svg)](https://docs.microsoft.com/windows-server/administration/windows-commands/windows-commands)
-[![Windows](https://img.shields.io/badge/Windows-7%7C8%7C10%7C11%7CServer-0078d4.svg)](https://www.microsoft.com/windows)
+[![Windows](https://img.shields.io/badge/Windows-7%7C8%7C10%7C11%7C12%7CServer-0078d4.svg)](https://www.microsoft.com/windows)
 
 > **Enterprise-grade PowerShell and Batch script suite for forcibly clearing Windows Print Spooler queues with comprehensive logging, error handling, and remote management capabilities**
 
