@@ -1,35 +1,35 @@
-# Print Spooler Queue Cleanup 🖨️🧹
+# 🖨️ Print Spooler Queue Cleanup v3.0 Professional
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/paulmann/Print-Spooler-Queue-Cleanup)
-[![License: CC0-1.0](https://img.shields.io/badge/license-CC0%201.0-lightgrey.svg)](https://creativecommons.org/publicdomain/zero/1.0/)
-[![Platform](https://img.shields.io/badge/platform-Windows-lightblue.svg)]()
-[![PowerShell](https://img.shields.io/badge/powershell-5.1+-orange.svg)](https://docs.microsoft.com/en-us/powershell/)
+[![License: Public Domain](https://img.shields.io/badge/License-Public%20Domain-brightgreen.svg)](https://creativecommons.org/publicdomain/zero/1.0/)
+[![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://docs.microsoft.com/powershell/)
+[![Batch](https://img.shields.io/badge/Batch-CMD-green.svg)](https://docs.microsoft.com/windows-server/administration/windows-commands/windows-commands)
+[![Windows](https://img.shields.io/badge/Windows-7%7C8%7C10%7C11%7CServer-0078d4.svg)](https://www.microsoft.com/windows)
 
-> **A professional PowerShell and Batch script suite for forcibly clearing Windows Print Spooler queues with administrative privilege verification and comprehensive error handling**
+> **Enterprise-grade PowerShell and Batch script suite for forcibly clearing Windows Print Spooler queues with comprehensive logging, error handling, and remote management capabilities**
 
-Print Spooler Queue Cleanup is a robust, enterprise-grade solution designed to resolve stuck or corrupted print jobs by automatically stopping the Print Spooler service, removing problematic spool files, and restarting the service. Perfect for Senior System Administrators managing Windows environments.
+Print Spooler Queue Cleanup is a professional system administration solution designed to resolve stuck or corrupted print jobs by safely managing the Windows Print Spooler service, removing problematic spool files, and ensuring service recovery. Perfect for Senior System Administrators managing Windows environments at scale.
 
-## ⚡ Quick Start
+## 🚀 Quick Start
 
-```batch
+```powershell
 # Download and run batch script (simple approach)
-# Right-click Clear-PrintSpoolerQueue.bat → Run as administrator
+# Right-click Clear-PrintSpoolerQueue.bat → Run as Administrator
 
 # Or clone the repository
 git clone https://github.com/paulmann/Print-Spooler-Queue-Cleanup.git
 cd Print-Spooler-Queue-Cleanup
 
-# Run batch script
+# Run batch script (v3.0)
 Clear-PrintSpoolerQueue.bat
 
-# Run PowerShell script with verbose output
+# Run PowerShell script with detailed output (v3.0)
 powershell.exe -ExecutionPolicy Bypass -File "Clear-PrintSpoolerQueue.ps1" -Verbose
 
-# Automated execution (no user interaction)
-Clear-PrintSpoolerQueue.bat
+# Remote execution on multiple computers
+.\Clear-PrintSpoolerQueue.ps1 -ComputerName "SERVER01","PC-FINANCE" -Force
 
-# Schedule via Task Scheduler
-schtasks /create /tn "Print Spooler Cleanup" /tr "C:\Scripts\Clear-PrintSpoolerQueue.bat" /sc daily /st 03:00
+# Schedule automated cleanup
+schtasks /create /tn "Print Spooler Cleanup" /tr "C:\Scripts\Clear-PrintSpoolerQueue.bat" /sc daily /st 03:00 /ru SYSTEM
 ```
 
 ## 📋 Table of Contents
@@ -37,20 +37,20 @@ schtasks /create /tn "Print Spooler Cleanup" /tr "C:\Scripts\Clear-PrintSpoolerQ
 - [🚨 Why Print Spooler Queue Cleanup?](#-why-print-spooler-queue-cleanup)
   - [The Hidden Problem](#the-hidden-problem)
   - [Real-World Impact](#real-world-impact)
-- [✨ Key Features](#-key-features)
+- [✨ Key Features v3.0](#-key-features-v30)
   - [🛡️ Enterprise-Grade Safety](#️-enterprise-grade-safety)
   - [🎯 Intelligent Processing](#-intelligent-processing)
-  - [📊 Comprehensive Logging](#-comprehensive-logging)
-  - [🔄 Automation Ready](#-automation-ready)
-- [📋 Installation & Usage](#-installation--usage)
+  - [📊 Advanced Logging & Statistics](#-advanced-logging--statistics)
+  - [🔄 Automation & Remote Management](#-automation--remote-management)
+- [📦 Installation & Usage](#-installation--usage)
   - [System Requirements](#system-requirements)
   - [Installation Options](#installation-options)
   - [Command Line Usage](#command-line-usage)
   - [Usage Examples](#usage-examples)
 - [🏗️ Advanced Features](#️-advanced-features)
-  - [Script Comparison](#script-comparison)
+  - [Script Comparison v3.0](#script-comparison-v30)
   - [Error Handling & Recovery](#error-handling--recovery)
-  - [Execution Policy Management](#execution-policy-management)
+  - [Cross-Version Compatibility](#cross-version-compatibility)
 - [🔗 DevOps Integration](#-devops-integration)
   - [Task Scheduler Integration](#task-scheduler-integration)
   - [Group Policy Deployment](#group-policy-deployment)
@@ -60,9 +60,6 @@ schtasks /create /tn "Print Spooler Cleanup" /tr "C:\Scripts\Clear-PrintSpoolerQ
   - [Monitoring & Reporting](#monitoring--reporting)
   - [Best Practices](#best-practices)
 - [🔍 Troubleshooting](#-troubleshooting)
-  - [Common Issues](#common-issues)
-  - [Debugging Commands](#debugging-commands)
-  - [Recovery Procedures](#recovery-procedures)
 - [🤝 Contributing](#-contributing)
 - [📄 License](#-license)
 - [👨‍💻 Author & Support](#-author--support)
@@ -82,7 +79,7 @@ PS C:\> Get-Printer | Get-PrintJob
 # Shows jobs stuck in queue that cannot be cancelled
 ```
 
-```batch
+```cmd
 # Manual cleanup is tedious and error-prone
 net stop spooler
 del /F /Q "%SystemRoot%\System32\spool\PRINTERS\*.*"
@@ -98,44 +95,54 @@ net start spooler
 - **⏰ Time Waste**: Manual cleanup takes time and is prone to human error
 - **🔄 Recurring Issues**: Without automation, problems repeat frequently
 
-## ✨ Key Features
+## ✨ Key Features v3.0
 
 ### 🛡️ **Enterprise-Grade Safety**
-- **Administrative Privilege Verification**: Automatically checks for required admin rights
-- **Service State Management**: Proper service stop/start with error handling
-- **File System Protection**: Safe deletion of spool files with error recovery
-- **Exit Code Standards**: Proper return codes for automation and monitoring
+
+- **Advanced Administrative Privilege Verification**: Multiple validation methods across Windows versions
+- **Service State Management**: Comprehensive service dependency handling with timeout controls
+- **File System Protection**: Safe deletion with detailed file tracking and recovery mechanisms
+- **Cross-Platform Compatibility**: Support for Windows 7/8/10/11 and all Server versions
+- **Legacy Mode Support**: Automatic detection and adaptation for older Windows versions
 
 ### 🎯 **Intelligent Processing**
-- **Service Dependency Handling**: Manages Print Spooler service gracefully
-- **File Type Targeting**: Specifically removes `.spl` and `.shd` spool files
-- **Error Detection**: Identifies and reports specific failure points
-- **Timeout Management**: Built-in delays for service state transitions
 
-### 📊 **Comprehensive Logging**
-- **Clear Status Messages**: Real-time feedback on operation progress
-- **Error Classification**: Detailed error reporting with specific codes
-- **Verbose Mode**: Optional detailed logging for troubleshooting
-- **Success Confirmation**: Clear completion status reporting
+- **Dynamic Spool Path Detection**: Registry-based path discovery for non-standard configurations
+- **Comprehensive File Analysis**: Pre and post-cleanup statistics with size calculations
+- **Service Dependency Management**: Proper handling of dependent services and recovery
+- **Timeout Management**: Built-in delays and progress monitoring for all operations
+- **Multi-Computer Support**: Bulk operations across multiple remote systems
 
-### 🔄 **Automation Ready**
-- **Silent Operation**: Can run without user interaction
-- **Task Scheduler Compatible**: Perfect for scheduled maintenance
-- **Remote Execution**: Supports remote deployment and execution
-- **Batch & PowerShell**: Dual implementation for different environments
+### 📊 **Advanced Logging & Statistics**
 
-## 📋 Installation & Usage
+- **Professional Console Output**: Color-coded status messages with Unicode symbols and timestamps
+- **Detailed File Logging**: Timestamped log files with structured error reporting
+- **Real-Time Statistics**: Live tracking of files processed, jobs cleared, and execution time
+- **Performance Metrics**: Detailed operation summaries with success/failure rates
+- **Event Log Integration**: Optional Windows Event Log integration for enterprise monitoring
+
+### 🔄 **Automation & Remote Management**
+
+- **Silent Operation Modes**: Unattended execution with Force parameter support
+- **Remote Execution**: Native support for multiple computer targeting
+- **Task Scheduler Ready**: Optimized for scheduled maintenance operations
+- **WhatIf Support**: Safe preview mode for testing before execution
+- **Bulk Management**: Efficient processing of multiple systems simultaneously
+
+## 📦 Installation & Usage
 
 ### System Requirements
 
 - **Operating System**: Windows 7/8/10/11, Windows Server 2008 R2+
-- **Permissions**: Must run as **Administrator**
+- **Permissions**: Administrator privileges required for local execution
 - **PowerShell Version**: 5.1 or later (for .ps1 script)
-- **Dependencies**: Native Windows utilities only
+- **Dependencies**: Native Windows utilities only - no external modules required
+- **Network Access**: WinRM enabled for remote operations (optional)
 
 ### Installation Options
 
 #### Option 1: Direct Download
+
 ```powershell
 # Download batch script
 Invoke-WebRequest -Uri "https://github.com/paulmann/Print-Spooler-Queue-Cleanup/raw/main/Clear-PrintSpoolerQueue.bat" -OutFile "Clear-PrintSpoolerQueue.bat"
@@ -148,12 +155,14 @@ Unblock-File Clear-PrintSpoolerQueue.ps1
 ```
 
 #### Option 2: Git Clone
+
 ```bash
 git clone https://github.com/paulmann/Print-Spooler-Queue-Cleanup.git
 cd Print-Spooler-Queue-Cleanup
 ```
 
 #### Option 3: Enterprise Deployment
+
 ```powershell
 # Copy to shared network location
 $NetworkPath = "\\server\share\Scripts\PrintCleanup"
@@ -165,177 +174,271 @@ Copy-Item "*.bat", "*.ps1" -Destination $NetworkPath
 
 ### Command Line Usage
 
-| Script | Execution Method | Best For |
-|--------|------------------|----------|
-| **Clear-PrintSpoolerQueue.bat** | Right-click → Run as administrator | Quick manual cleanup |
-| **Clear-PrintSpoolerQueue.ps1** | PowerShell with `-Verbose` | Detailed logging & automation |
+| Script | Version | Execution Method | Best For |
+|--------|---------|------------------|----------|
+| **Clear-PrintSpoolerQueue.bat** | v3.0 | Right-click → Run as Administrator | Quick manual cleanup, legacy compatibility |
+| **Clear-PrintSpoolerQueue.ps1** | v3.0 | PowerShell with parameters | Advanced logging, remote management, automation |
 
 ### Usage Examples
 
 #### Basic Execution
-```batch
-# Batch script - simple double-click or:
+
+```cmd
+# Batch script v3.0 - Enhanced with logging and statistics
 Clear-PrintSpoolerQueue.bat
-
-# PowerShell script - from elevated PowerShell:
-.\Clear-PrintSpoolerQueue.ps1
-
-# PowerShell with verbose output:
-.\Clear-PrintSpoolerQueue.ps1 -Verbose
 ```
 
-#### Remote Execution
 ```powershell
-# Execute on remote computer
+# PowerShell script v3.0 - Professional Cross-Version Edition
+.\Clear-PrintSpoolerQueue.ps1
+
+# PowerShell with verbose output and custom log path
+.\Clear-PrintSpoolerQueue.ps1 -Verbose -LogPath "C:\Admin\Logs\SpoolerCleanup.log"
+
+# Test mode - see what would be done without making changes
+.\Clear-PrintSpoolerQueue.ps1 -WhatIf
+```
+
+#### Remote Execution (New in v3.0)
+
+```powershell
+# Execute on single remote computer
+.\Clear-PrintSpoolerQueue.ps1 -ComputerName "PrintServer01" -Verbose
+
+# Execute on multiple remote computers
+.\Clear-PrintSpoolerQueue.ps1 -ComputerName "SERVER01","PC-FINANCE","WORKSTATION-05" -Force
+
+# Bulk execution with pipeline input
+"SERVER01","SERVER02","SERVER03" | .\Clear-PrintSpoolerQueue.ps1 -Force -Verbose
+```
+
+#### Advanced Automation
+
+```powershell
+# Execute via Invoke-Command for enterprise scenarios
 Invoke-Command -ComputerName "PrintServer01" -ScriptBlock {
-    & "C:\Scripts\Clear-PrintSpoolerQueue.ps1" -Verbose
+    & "C:\Scripts\Clear-PrintSpoolerQueue.ps1" -Force
 }
 
-# Execute via PsExec
-psexec \\PrintServer01 -s "C:\Scripts\Clear-PrintSpoolerQueue.bat"
+# Scheduled execution with comprehensive logging
+$ScriptPath = "C:\Scripts\Clear-PrintSpoolerQueue.ps1"
+$LogPath = "C:\Logs\SpoolerCleanup_$(Get-Date -Format 'yyyyMMdd').log"
+& $ScriptPath -Force -LogPath $LogPath -Verbose
 ```
 
 #### Scheduled Execution
-```batch
-# Create daily cleanup task
-schtasks /create /tn "Daily Print Cleanup" /tr "C:\Scripts\Clear-PrintSpoolerQueue.bat" /sc daily /st 03:00 /ru SYSTEM
 
-# Create weekly cleanup with PowerShell
-schtasks /create /tn "Weekly Print Cleanup Verbose" /tr "powershell.exe -ExecutionPolicy Bypass -File C:\Scripts\Clear-PrintSpoolerQueue.ps1 -Verbose" /sc weekly /d SUN /st 02:00 /ru SYSTEM
+```cmd
+# Create daily cleanup task for Batch script
+schtasks /create /tn "Daily Print Cleanup v3.0" /tr "C:\Scripts\Clear-PrintSpoolerQueue.bat" /sc daily /st 03:00 /ru SYSTEM /rl HIGHEST
+
+# Create advanced PowerShell task with logging
+schtasks /create /tn "Advanced Print Cleanup v3.0" ^
+ /tr "powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\Scripts\Clear-PrintSpoolerQueue.ps1' -Force -Verbose" ^
+ /sc weekly /d SUN /st 02:00 /ru SYSTEM /rl HIGHEST
 ```
 
 ## 🏗️ Advanced Features
 
-### Script Comparison
+### Script Comparison v3.0
 
-| Feature | Batch Script | PowerShell Script |
-|---------|-------------|-------------------|
-| **Admin Check** | `cacls.exe` method | `WindowsPrincipal` check |
-| **Service Control** | `net stop/start` | `Stop-Service/Start-Service` |
-| **File Cleanup** | `del /F /Q` | `Remove-Item -Force -Recurse` |
-| **Error Handling** | Basic exit codes | Advanced try/catch blocks |
-| **Logging** | Console output | Verbose parameter support |
-| **Dependencies** | Native Windows only | PowerShell 5.1+ |
+| Feature | Batch Script v3.0 | PowerShell Script v3.0 |
+|---------|-------------------|------------------------|
+| **Admin Check** | `net session` method + legacy support | `WindowsPrincipal` + fallback methods |
+| **Service Control** | `net stop/start` with error handling | `Stop-Service/Start-Service` with progress |
+| **File Management** | `del /q` with size calculation | `Remove-Item` with detailed tracking |
+| **Error Handling** | Function-based with logging | Advanced try/catch with recovery |
+| **Logging** | File-based with timestamps | Multi-level logging + console output |
+| **Remote Support** | Local only | Native multi-computer support |
+| **Statistics** | Basic file count and size | Comprehensive execution metrics |
+| **Progress Tracking** | Console messages | Progress bars and real-time updates |
+| **Dependencies** | Native Windows only | PowerShell 5.1+ (cross-version compatible) |
 
 ### Error Handling & Recovery
 
-The scripts provide **comprehensive error handling**:
+The v3.0 scripts provide **comprehensive error handling** with automatic recovery:
 
 ```powershell
-# PowerShell error handling example
+# PowerShell v3.0 error handling example
 try {
+    # Stop service with dependency management
     Stop-Service -Name 'Spooler' -Force -ErrorAction Stop
-    Start-Sleep -Seconds 3
-    Remove-Item -Path "$env:SystemRoot\System32\spool\PRINTERS\*" -Force -Recurse -ErrorAction SilentlyContinue
+    
+    # Wait with progress indication
+    $timeout = 30
+    for ($i = 1; $i -le $timeout; $i++) {
+        Start-Sleep -Seconds 1
+        $service = Get-Service -Name 'Spooler'
+        if ($service.Status -eq 'Stopped') { break }
+        Write-Progress -Activity "Stopping Print Spooler" -Status "Waiting..." -PercentComplete (($i / $timeout) * 100)
+    }
+    
+    # Safe file cleanup with individual file tracking
+    $results = @()
+    Get-ChildItem -Path $SpoolPath -File | ForEach-Object {
+        try {
+            Remove-Item -Path $_.FullName -Force -ErrorAction Stop
+            $results += @{ Success = $true; File = $_.Name }
+        } catch {
+            $results += @{ Success = $false; File = $_.Name; Error = $_.Exception.Message }
+        }
+    }
+    
+    # Restart service with verification
     Start-Service -Name 'Spooler' -ErrorAction Stop
-    Write-Output "Print Spooler queue has been forcibly cleared and service restarted."
-} catch {
-    Write-Error "Failed to clean print spooler: $($_.Exception.Message)"
+    Write-Output "Print Spooler queue cleared successfully. Files processed: $(($results | Where-Object Success -eq $true).Count)"
+} 
+catch {
+    Write-Error "Critical error during cleanup: $($_.Exception.Message)"
+    
+    # Attempt service recovery
+    try {
+        Write-Warning "Attempting service recovery..."
+        Start-Service -Name 'Spooler' -ErrorAction SilentlyContinue
+    } catch {
+        Write-Error "Service recovery failed: $($_.Exception.Message)"
+    }
+    
     Exit 1
 }
 ```
 
-**Recovery Features:**
-- 🔄 **Automatic Service Recovery**: If stop fails, attempts graceful handling
-- 📝 **Detailed Error Messages**: Specific error reporting for troubleshooting
-- 🛡️ **Safe Fallback**: Service restart attempted even if file deletion fails
-- 🚨 **Exit Code Standards**: Proper return codes (0=success, 1=failure)
+**Recovery Features v3.0:**
 
-### Execution Policy Management
+- 🔄 **Intelligent Service Recovery**: Multi-stage recovery with dependency handling
+- 📝 **Granular Error Reporting**: Individual file processing results with specific error messages
+- 🛡️ **Safe Fallback Mechanisms**: Service restart attempted even on partial failures
+- 🚨 **Structured Exit Codes**: Standardized return codes for automation integration
+- 📊 **Error Statistics**: Detailed tracking of error types and frequency
 
-If you encounter execution policy errors:
+### Cross-Version Compatibility
 
 ```powershell
-# Check current policy
-Get-ExecutionPolicy -Scope CurrentUser
+# PowerShell version detection and adaptation
+$PSVersion = $PSVersionTable.PSVersion
+if ($PSVersion -lt [Version]'5.1') {
+    Write-Error "PowerShell 5.1 or later required. Current version: $PSVersion"
+    exit 1
+}
 
-# Set policy for current user
-Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Unrestricted
-
-# Bypass policy for single execution
-powershell.exe -ExecutionPolicy Bypass -File "Clear-PrintSpoolerQueue.ps1"
-
-# Enterprise policy bypass
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "Clear-PrintSpoolerQueue.ps1" -Verbose
+# Legacy Windows support in Batch script
+for /f "tokens=4-5 delims=. " %%i in ('ver') do set "OS_MAJOR_VER=%%i"
+if %OS_MAJOR_VER% LSS 6 (
+    set "LEGACY_MODE=1"
+    echo Legacy Windows detected - using compatibility mode
+) else (
+    set "LEGACY_MODE=0"
+)
 ```
 
 ## 🔗 DevOps Integration
 
 ### Task Scheduler Integration
 
-#### GUI Method
+#### GUI Method (Enhanced v3.0)
+
 1. Open **Task Scheduler** → **Create Task**
-2. **General Tab**: Select "Run with highest privileges"
-3. **Triggers Tab**: Set desired schedule
-4. **Actions Tab**: Configure program execution
-5. **Settings Tab**: Enable task settings as needed
+2. **General Tab**: 
+   - Name: "Print Spooler Cleanup v3.0"
+   - Select "Run with highest privileges"
+   - Configure for your Windows version
+3. **Triggers Tab**: Set desired schedule (daily recommended)
+4. **Actions Tab**: 
+   - Program: `powershell.exe`
+   - Arguments: `-NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\Clear-PrintSpoolerQueue.ps1" -Force`
+5. **Settings Tab**: Enable appropriate task behaviors
 
-#### Command Line Method
-```batch
-# Create basic daily task
-schtasks /create /tn "Print Spooler Cleanup" /tr "C:\Scripts\Clear-PrintSpoolerQueue.bat" /sc daily /st 03:00 /ru SYSTEM /rl HIGHEST
+#### PowerShell-Based Task Creation
 
-# Create advanced PowerShell task
-schtasks /create /tn "Advanced Print Cleanup" ^
-    /tr "powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\Scripts\Clear-PrintSpoolerQueue.ps1' -Verbose" ^
-    /sc daily /st 03:00 /ru SYSTEM /rl HIGHEST ^
-    /f /rl HIGHEST
+```powershell
+# Create advanced scheduled task with PowerShell
+$TaskName = "Print Spooler Cleanup v3.0 Professional"
+$ScriptPath = "C:\Scripts\Clear-PrintSpoolerQueue.ps1"
+
+$Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`" -Force -Verbose"
+$Trigger = New-ScheduledTaskTrigger -Daily -At "03:00"
+$Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+$Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+
+Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Settings $Settings -Principal $Principal
 ```
 
 ### Group Policy Deployment
 
-#### Startup Script Deployment
-```batch
-# Copy to SYSVOL
-copy Clear-PrintSpoolerQueue.bat "\\domain.com\SYSVOL\domain.com\scripts\"
+#### Advanced GPO Configuration
 
-# Configure via Group Policy:
-# Computer Configuration > Policies > Windows Settings > Scripts > Startup
-```
-
-#### Scheduled Task via Group Policy
 ```xml
-<!-- Import into Group Policy Preferences > Control Panel Settings > Scheduled Tasks -->
+<!-- Enhanced Group Policy Preferences for v3.0 -->
 <ScheduledTask clsid="{CC63F200-7309-4ba0-B154-A71CD118DBCC}">
-    <Properties action="C" name="Print Spooler Cleanup" runAs="SYSTEM" logonType="S4U"/>
-    <Task version="1.3">
-        <Actions>
-            <Exec>
-                <Command>C:\Scripts\Clear-PrintSpoolerQueue.bat</Command>
-            </Exec>
-        </Actions>
-        <Triggers>
-            <CalendarTrigger>
-                <StartBoundary>2025-01-01T03:00:00</StartBoundary>
-                <ScheduleByDay>
-                    <DaysInterval>1</DaysInterval>
-                </ScheduleByDay>
-            </CalendarTrigger>
-        </Triggers>
-    </Task>
+  <Properties action="C" name="Print Spooler Cleanup v3.0" runAs="SYSTEM" logonType="S4U"/>
+  <Task version="1.3">
+    <RegistrationInfo>
+      <Description>Professional Print Spooler maintenance utility v3.0</Description>
+      <Author>IT Department</Author>
+    </RegistrationInfo>
+    <Triggers>
+      <CalendarTrigger>
+        <StartBoundary>2025-01-01T03:00:00</StartBoundary>
+        <ScheduleByDay>
+          <DaysInterval>1</DaysInterval>
+        </ScheduleByDay>
+      </CalendarTrigger>
+    </Triggers>
+    <Actions>
+      <Exec>
+        <Command>powershell.exe</Command>
+        <Arguments>-NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\Clear-PrintSpoolerQueue.ps1" -Force</Arguments>
+      </Exec>
+    </Actions>
+    <Settings>
+      <AllowStartOnDemand>true</AllowStartOnDemand>
+      <AllowHardTerminate>false</AllowHardTerminate>
+      <StartWhenAvailable>true</StartWhenAvailable>
+    </Settings>
+  </Task>
 </ScheduledTask>
 ```
 
-### Remote Management
+### Remote Management (New in v3.0)
 
 ```powershell
-# Execute on multiple computers
-$Computers = @("PC001", "PC002", "PrintServer01")
+# Enterprise-scale remote management
+$Computers = Get-ADComputer -Filter {OperatingSystem -like "*Windows*"} | Select-Object -ExpandProperty Name
 $ScriptPath = "C:\Scripts\Clear-PrintSpoolerQueue.ps1"
 
-Invoke-Command -ComputerName $Computers -ScriptBlock {
-    param($Path)
-    & $Path -Verbose
-} -ArgumentList $ScriptPath
-
-# Using PowerShell Desired State Configuration (DSC)
-Configuration PrintSpoolerMaintenance {
-    Script ClearSpoolerQueue {
-        GetScript = { @{ Result = "PrintSpoolerCleanup" } }
-        TestScript = { $false }  # Always run
-        SetScript = { & "C:\Scripts\Clear-PrintSpoolerQueue.ps1" }
-    }
+# Parallel execution with job management
+$Jobs = foreach ($Computer in $Computers) {
+    Start-Job -ScriptBlock {
+        param($ComputerName, $ScriptPath)
+        try {
+            Invoke-Command -ComputerName $ComputerName -ScriptBlock {
+                param($Path)
+                & $Path -Force
+            } -ArgumentList $ScriptPath
+            [PSCustomObject]@{
+                Computer = $ComputerName
+                Status = "Success"
+                Message = "Cleanup completed"
+            }
+        } catch {
+            [PSCustomObject]@{
+                Computer = $ComputerName
+                Status = "Failed" 
+                Message = $_.Exception.Message
+            }
+        }
+    } -ArgumentList $Computer, $ScriptPath
 }
+
+# Monitor and collect results
+$Results = $Jobs | Wait-Job | Receive-Job
+$Jobs | Remove-Job
+
+# Generate summary report
+$SuccessCount = ($Results | Where-Object Status -eq "Success").Count
+$FailCount = ($Results | Where-Object Status -eq "Failed").Count
+
+Write-Host "Bulk cleanup completed: $SuccessCount successful, $FailCount failed" -ForegroundColor Green
 ```
 
 ## 🏢 Enterprise Usage
@@ -343,217 +446,377 @@ Configuration PrintSpoolerMaintenance {
 ### Deployment Strategies
 
 #### Small Office (1-50 computers)
-```batch
-# Simple network share deployment
-net use Z: \\server\scripts
-copy Clear-PrintSpoolerQueue.bat Z:\
-# Create scheduled task pointing to Z:\Clear-PrintSpoolerQueue.bat
+
+```powershell
+# Simple network share deployment with v3.0 features
+$SharePath = "\\SERVER\Scripts$\PrintCleanup"
+New-Item -Path $SharePath -ItemType Directory -Force
+Copy-Item "Clear-PrintSpoolerQueue.*" -Destination $SharePath
+
+# Create GPO startup script pointing to network share
+# Computer Configuration > Policies > Windows Settings > Scripts > Startup
 ```
 
 #### Medium Enterprise (50-500 computers)
+
 ```powershell
-# Group Policy + PowerShell deployment
-# 1. Deploy script via Group Policy Preferences
-# 2. Create scheduled task via Group Policy
-# 3. Monitor via event logs
+# SCCM/Intune deployment package
+$PackageName = "Print Spooler Cleanup v3.0"
+$SourcePath = "\\SERVER\Software$\PrintCleanup"
+
+# Create application deployment with detection rules
+# Detection: File exists C:\Scripts\Clear-PrintSpoolerQueue.ps1 version 3.0
+# Install command: xcopy /Y /E "Clear-PrintSpoolerQueue.*" "C:\Scripts\"
+# Schedule: Daily maintenance window
 ```
 
 #### Large Enterprise (500+ computers)
+
 ```powershell
-# SCCM/ConfigMgr deployment
-# 1. Package scripts as application
-# 2. Deploy to device collections
-# 3. Schedule recurring deployment
-# 4. Report compliance via SCCM reporting
+# PowerShell DSC configuration for v3.0
+Configuration PrintSpoolerMaintenance {
+    Node $ComputerName {
+        File PrintCleanupScript {
+            DestinationPath = "C:\Scripts\Clear-PrintSpoolerQueue.ps1"
+            SourcePath = "\\SERVER\DSC$\Scripts\Clear-PrintSpoolerQueue.ps1"
+            Ensure = "Present"
+            Type = "File"
+            Checksum = "SHA-256"
+        }
+        
+        ScheduledTask PrintCleanupTask {
+            TaskName = "Print Spooler Cleanup v3.0"
+            ActionExecutable = "powershell.exe"
+            ActionArguments = "-NoProfile -ExecutionPolicy Bypass -File C:\Scripts\Clear-PrintSpoolerQueue.ps1 -Force"
+            ScheduleType = "Daily"
+            StartTime = "03:00"
+            RunLevel = "Highest"
+            ExecuteAsCredential = $SystemCredential
+        }
+    }
+}
 ```
 
 ### Monitoring & Reporting
 
-#### Event Log Integration
+#### Advanced Event Log Integration
+
 ```powershell
-# Add to PowerShell script for logging
-Write-EventLog -LogName System -Source "Print Spooler Cleanup" -EventId 1001 -EntryType Information -Message "Spooler cleanup completed successfully"
-
-# Query cleanup events
-Get-EventLog -LogName System -Source "Print Spooler Cleanup" -Newest 10
-```
-
-#### Performance Monitoring
-```powershell
-# Monitor print spooler performance
-Get-Counter "\Print Queue(*)\Jobs" -Continuous
-Get-Counter "\Print Queue(*)\Jobs Spooling" -Continuous
-
-# Check spooler service status across domain
-Get-ADComputer -Filter * | ForEach-Object {
-    Get-Service -Name Spooler -ComputerName $_.Name -ErrorAction SilentlyContinue
+# Enhanced logging for v3.0 - add to PowerShell script
+function Write-EnterpriseLog {
+    param(
+        [string]$Message,
+        [ValidateSet('Information','Warning','Error')]$EntryType = 'Information',
+        [int]$EventId = 1001
+    )
+    
+    try {
+        # Create custom event source if it doesn't exist
+        if (-not (Get-EventLog -LogName Application -Source "Print Spooler Cleanup v3.0" -ErrorAction SilentlyContinue)) {
+            New-EventLog -LogName Application -Source "Print Spooler Cleanup v3.0"
+        }
+        
+        Write-EventLog -LogName Application -Source "Print Spooler Cleanup v3.0" -EventId $EventId -EntryType $EntryType -Message $Message
+    } catch {
+        Write-Warning "Failed to write to event log: $($_.Exception.Message)"
+    }
 }
+
+# Usage examples
+Write-EnterpriseLog "Spooler cleanup started on $env:COMPUTERNAME" -EventId 1001
+Write-EnterpriseLog "Cleanup completed: $FilesDeleted files processed" -EventId 1002
+Write-EnterpriseLog "Critical error during cleanup: $ErrorMessage" -EntryType Error -EventId 1003
 ```
 
-### Best Practices
+#### Performance Monitoring Dashboard
+
+```powershell
+# Create monitoring queries for enterprise dashboards
+# SCOM/PRTG/Nagios integration examples
+
+# Query cleanup success rate across domain
+Get-WinEvent -FilterHashtable @{
+    LogName = 'Application'
+    ProviderName = 'Print Spooler Cleanup v3.0'
+    StartTime = (Get-Date).AddDays(-7)
+} | Group-Object Id | ForEach-Object {
+    [PSCustomObject]@{
+        EventType = switch ($_.Name) {
+            1001 { "Cleanup Started" }
+            1002 { "Cleanup Successful" }  
+            1003 { "Cleanup Failed" }
+        }
+        Count = $_.Count
+        Percentage = [math]::Round(($_.Count / $TotalEvents) * 100, 2)
+    }
+}
+
+# Performance counter monitoring
+Get-Counter -Counter @(
+    "\Print Queue(*)\Jobs"
+    "\Print Queue(*)\Jobs Spooling"
+    "\Process(spoolsv)\% Processor Time"
+) -SampleInterval 60 -MaxSamples 1440  # 24 hours of data
+```
+
+### Best Practices v3.0
 
 #### Security Considerations
-- ✅ **Run as SYSTEM**: Use system account for scheduled tasks
-- ✅ **Secure Script Storage**: Store scripts in protected locations
-- ✅ **Execution Policy**: Configure appropriate PowerShell execution policies
-- ✅ **Audit Trail**: Enable logging for compliance requirements
 
-#### Operational Guidelines
-- 🕐 **Schedule During Off-Hours**: Run cleanup during low-usage periods
-- 📊 **Monitor Success Rates**: Track cleanup success/failure rates
-- 🔄 **Regular Reviews**: Periodically review and update scripts
-- 📝 **Documentation**: Maintain operational documentation
+- ✅ **Principle of Least Privilege**: Use service accounts with minimal required permissions
+- ✅ **Script Signing**: Sign PowerShell scripts in enterprise environments
+- ✅ **Secure Storage**: Store scripts in protected locations with proper ACLs
+- ✅ **Audit Logging**: Enable comprehensive logging for compliance requirements
+- ✅ **Network Security**: Use secure channels for remote script execution
+
+#### Operational Excellence
+
+- 📊 **Metrics-Driven**: Track cleanup success rates, execution times, and error patterns
+- 🔄 **Automated Testing**: Regular validation of script functionality across Windows versions
+- 📝 **Documentation**: Maintain updated runbooks and troubleshooting procedures
+- 🚨 **Alerting**: Configure alerts for cleanup failures or performance degradation
+- 🔄 **Version Control**: Use Git for script versioning and change management
 
 ## 🔍 Troubleshooting
 
-### Common Issues
+### Common Issues v3.0
 
 #### Access Denied Errors
-```batch
+
+```powershell
 # Problem: "Access is denied" when stopping service
-# Solution: Verify administrative privileges
+# Solution: Verify administrative privileges and service permissions
+
+# Check current privileges
 whoami /priv | findstr SeServiceLogonRight
-# Ensure "Run as administrator" is used
+Get-LocalGroupMember -Group "Administrators" | Where-Object Name -eq $env:USERNAME
+
+# Verify service permissions
+$Service = Get-Service -Name Spooler
+$ServiceACL = Get-Acl -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Spooler"
+$ServiceACL.Access | Where-Object IdentityReference -like "*$env:USERNAME*"
 ```
 
-#### Service Won't Stop
-```powershell
-# Problem: Print Spooler service won't stop
-# Solution: Force stop dependent services first
-Get-Service | Where-Object {$_.DependentServices -contains (Get-Service Spooler)} | Stop-Service -Force
-Stop-Service Spooler -Force
+#### Service Dependencies (Enhanced)
 
-# Alternative: Use taskkill for spoolsv.exe
-taskkill /f /im spoolsv.exe
+```powershell
+# Problem: Print Spooler service won't stop due to dependencies
+# Solution: Enhanced dependency management in v3.0
+
+function Stop-ServiceWithDependencies {
+    param([string]$ServiceName)
+    
+    $Service = Get-Service -Name $ServiceName
+    $DependentServices = $Service.DependentServices | Where-Object Status -eq 'Running'
+    
+    if ($DependentServices) {
+        Write-Host "Stopping dependent services first..." -ForegroundColor Yellow
+        foreach ($DepService in $DependentServices) {
+            Write-Host "  Stopping $($DepService.Name)..." -ForegroundColor Cyan
+            Stop-Service -Name $DepService.Name -Force -ErrorAction Continue
+        }
+    }
+    
+    # Now stop the main service
+    Stop-Service -Name $ServiceName -Force
+    
+    # Restart dependent services after main service restart
+    if ($DependentServices) {
+        Start-Service -Name $ServiceName
+        foreach ($DepService in $DependentServices) {
+            Write-Host "  Restarting $($DepService.Name)..." -ForegroundColor Green
+            Start-Service -Name $DepService.Name -ErrorAction Continue
+        }
+    }
+}
 ```
 
-#### PowerShell Execution Policy
+#### PowerShell Execution Policy (Advanced)
+
 ```powershell
-# Problem: Execution policy blocks script
-# Solution: Check and modify execution policy
+# Problem: Execution policy blocks script in enterprise environment
+# Solution: Multi-level policy management
+
+# Check all execution policy scopes
 Get-ExecutionPolicy -List
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
-# Emergency bypass
-powershell.exe -ExecutionPolicy Bypass -File "Clear-PrintSpoolerQueue.ps1"
+# Enterprise-safe policy configuration
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+
+# For Group Policy managed environments
+if ((Get-ExecutionPolicy -Scope MachinePolicy) -eq 'Restricted') {
+    Write-Warning "Machine policy restricts execution. Using bypass method..."
+    $ScriptPath = $MyInvocation.MyCommand.Path
+    Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -File `"$ScriptPath`"" -Verb RunAs
+    exit
+}
+
+# Alternative: Use encoded commands for maximum compatibility
+$ScriptContent = Get-Content $MyInvocation.MyCommand.Path -Raw
+$EncodedScript = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($ScriptContent))
+powershell.exe -EncodedCommand $EncodedScript
 ```
 
-### Debugging Commands
-
-```batch
-# Check spooler service status
-sc query spooler
-net start | findstr Spooler
-
-# List files in spool directory
-dir "%SystemRoot%\System32\spool\PRINTERS\" /a
-
-# Check print queues
-wmic printer get Name,PrintJobCount
-```
+### Advanced Debugging
 
 ```powershell
-# PowerShell debugging
-Get-Service Spooler | Format-List *
-Get-PrintJob -PrinterName * | Format-Table
-Get-ChildItem "$env:SystemRoot\System32\spool\PRINTERS" | Measure-Object
-```
+# Enhanced debugging capabilities in v3.0
+function Get-SpoolerDiagnostics {
+    $Diagnostics = @{
+        ServiceStatus = Get-Service -Name Spooler
+        SpoolDirectory = $env:SystemRoot + '\System32\spool\PRINTERS'
+        SpoolFiles = @()
+        PrintQueues = @()
+        RecentEvents = @()
+    }
+    
+    # Analyze spool files
+    if (Test-Path $Diagnostics.SpoolDirectory) {
+        $Diagnostics.SpoolFiles = Get-ChildItem -Path $Diagnostics.SpoolDirectory -File | ForEach-Object {
+            @{
+                Name = $_.Name
+                Size = $_.Length
+                Created = $_.CreationTime
+                Modified = $_.LastWriteTime
+                Extension = $_.Extension
+            }
+        }
+    }
+    
+    # Get print queue status
+    try {
+        $Diagnostics.PrintQueues = Get-Printer | ForEach-Object {
+            $Jobs = Get-PrintJob -PrinterName $_.Name -ErrorAction SilentlyContinue
+            @{
+                PrinterName = $_.Name
+                Status = $_.PrinterStatus
+                JobCount = $Jobs.Count
+                QueuedJobs = $Jobs | Select-Object Id, JobStatus, Size, SubmittedTime
+            }
+        }
+    } catch {
+        $Diagnostics.PrintQueues = @("Error retrieving print queues: $($_.Exception.Message)")
+    }
+    
+    # Get recent spooler events
+    $Diagnostics.RecentEvents = Get-WinEvent -FilterHashtable @{
+        LogName = 'System'
+        ProviderName = 'Service Control Manager'
+        StartTime = (Get-Date).AddHours(-24)
+    } | Where-Object Message -like "*Spooler*" | Select-Object TimeCreated, LevelDisplayName, Message
+    
+    return $Diagnostics
+}
 
-### Recovery Procedures
-
-#### Manual Service Recovery
-```batch
-# If automatic restart fails
-net stop spooler /y
-timeout /t 5
-net start spooler
-
-# Check service dependencies
-sc enumdepend spooler
-```
-
-#### Registry Cleanup (Advanced)
-```reg
-# Clear spooler registry entries (use with caution)
-# HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Print\Printers
-# Only modify if standard cleanup fails
+# Usage
+$Diagnostics = Get-SpoolerDiagnostics
+$Diagnostics | ConvertTo-Json -Depth 4 | Out-File "SpoolerDiagnostics_$(Get-Date -Format 'yyyyMMdd_HHmmss').json"
 ```
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how to get involved:
+We welcome contributions to make this tool even better! Here's how to get involved:
 
-### Development Setup
+### Development Environment Setup
+
 ```bash
+# Clone the repository
 git clone https://github.com/paulmann/Print-Spooler-Queue-Cleanup.git
 cd Print-Spooler-Queue-Cleanup
 
-# Test batch script syntax
-# No syntax checker needed - test by execution
+# Create development branch
+git checkout -b feature/your-enhancement-name
 
-# Test PowerShell script syntax
-powershell.exe -NoProfile -NoExecute -Command "& {Get-Command .\Clear-PrintSpoolerQueue.ps1}"
+# Test environment setup
+# Ensure you have:
+# - Windows test machines (various versions)
+# - PowerShell 5.1+ and 7+
+# - Administrative privileges
+# - Test printers configured
 ```
 
 ### Contribution Guidelines
 
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Test** your changes thoroughly on different Windows versions
-4. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-5. **Push** to the branch (`git push origin feature/amazing-feature`)
-6. **Open** a Pull Request
+1. **🍴 Fork** the repository
+2. **🔨 Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **🧪 Test** thoroughly on multiple Windows versions and PowerShell editions
+4. **📝 Document** changes in both code comments and README updates
+5. **✅ Commit** with descriptive messages (`git commit -m 'Add amazing feature'`)
+6. **📤 Push** to your branch (`git push origin feature/amazing-feature`)
+7. **🔄 Open** a Pull Request with detailed description
 
-### Code Standards
+### Code Standards v3.0
 
-- ✅ **Windows Compatibility**: Test on Windows 7-11 and Server versions
-- ✅ **Error Handling**: Comprehensive error checking and recovery
-- ✅ **Documentation**: Comment complex logic and add help text
-- ✅ **Backwards Compatibility**: Maintain compatibility with existing deployments
-- ✅ **Security**: Follow security best practices for system administration
+- ✅ **Cross-Platform Testing**: Verify compatibility with Windows 7-11 and Server versions
+- ✅ **PowerShell Compatibility**: Test with PowerShell 5.1, 7.x, and Windows PowerShell
+- ✅ **Error Handling**: Comprehensive error checking with graceful degradation
+- ✅ **Documentation**: Clear comments, help text, and usage examples
+- ✅ **Performance**: Optimize for speed and resource usage
+- ✅ **Security**: Follow security best practices and avoid privileged operations where possible
+
+### Testing Checklist
+
+- [ ] Batch script runs on Windows 7, 10, 11, Server 2019/2022
+- [ ] PowerShell script works with PS 5.1 and 7.x
+- [ ] Administrative privilege detection works correctly
+- [ ] Service stop/start operations handle edge cases
+- [ ] File cleanup properly handles locked files
+- [ ] Logging captures all relevant information
+- [ ] Remote execution functions properly
+- [ ] Error recovery mechanisms activate correctly
 
 ## 📄 License
 
-[![License: CC0-1.0](https://img.shields.io/badge/license-CC0%201.0-lightgrey.svg)](https://creativecommons.org/publicdomain/zero/1.0/)
-
-This project is dedicated to the **public domain** under the [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/legalcode).
+This project is dedicated to the **public domain** under the CC0 1.0 Universal license.
 
 ```
-To the extent possible under law,
-Mikhail Deynekin has waived all copyright and related or neighboring rights to
-Print Spooler Queue Cleanup.
+To the extent possible under law, Mikhail Deynekin has waived all copyright 
+and related or neighboring rights to Print Spooler Queue Cleanup.
 
-No permission is required to use, copy, modify, merge, publish, distribute, sublicense, or sell copies of this software for any purpose, commercial or non-commercial, and by anyone. Attribution is not required.
+This work is published from: Russian Federation.
 
-For more information, see: https://creativecommons.org/publicdomain/zero/1.0/
+You can copy, modify, distribute and perform the work, even for commercial 
+purposes, all without asking permission. No attribution is required, but 
+appreciated.
+
+For more information: https://creativecommons.org/publicdomain/zero/1.0/
 ```
 
 ## 👨‍💻 Author & Support
 
 **Mikhail Deynekin**  
-Senior System Administrator & Developer
+*Senior System Administrator & Developer*
 
-- 🌐 Website: [deynekin.com](https://deynekin.com)
-- 📧 Email: mid1977@gmail.com
-- 🐙 GitHub: [@paulmann](https://github.com/paulmann)
+- 🌐 **Website**: [deynekin.com](https://deynekin.com)
+- 📧 **Email**: mid1977@gmail.com  
+- 🐙 **GitHub**: [@paulmann](https://github.com/paulmann)
+- 💼 **LinkedIn**: Professional system administration expert
 
 ### Getting Help
 
-- 📖 **Documentation**: Read this README thoroughly
-- 🐛 **Bug Reports**: [Open an issue](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/issues/new)
-- 💡 **Feature Requests**: [Request features](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/issues/new)
+- 📖 **Documentation**: Read this comprehensive README
+- 🐛 **Bug Reports**: [Open an issue](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/issues/new?template=bug_report.md)
+- 💡 **Feature Requests**: [Request features](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/issues/new?template=feature_request.md)
 - 💬 **Questions**: Check [Discussions](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/discussions)
+- 📚 **Enterprise Support**: Contact via email for consulting services
 
 ### Related Projects
 
-- [Print-Management-Tools](https://github.com/search?q=print+spooler+windows) - Various Windows print management utilities
-- [Windows-System-Administration](https://github.com/topics/windows-administration) - General Windows admin tools
-- [PowerShell-Scripts](https://github.com/topics/powershell-scripts) - Collection of PowerShell utilities
-
----
+- 🖨️ **Print-Management-Tools** - Additional Windows print management utilities
+- 🖥️ **Windows-System-Administration** - Comprehensive Windows admin tool collection  
+- 📜 **PowerShell-Scripts** - Professional PowerShell utility library
+- 🔧 **System-Maintenance-Suite** - Complete system maintenance automation
 
 ### ⭐ Star this repository if it helped you!
 
-**Print Spooler Queue Cleanup** - *Keeping your printers flowing, one cleanup at a time* 🖨️🧹
+**Print Spooler Queue Cleanup v3.0 Professional** - Keeping enterprise printers flowing smoothly, one cleanup at a time! 🖨️✨
 
-[Report Bug](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/issues) · [Request Feature](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/issues) · [Documentation](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/wiki)
+---
+
+<div align="center">
+
+**[🐛 Report Bug](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/issues) • [💡 Request Feature](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/issues) • [📚 Documentation](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/wiki)**
+
+*Made with ❤️ for System Administrators worldwide*
+
+</div>
