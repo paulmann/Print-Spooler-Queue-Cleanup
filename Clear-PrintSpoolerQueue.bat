@@ -1,259 +1,472 @@
 @echo off
-SetLocal EnableExtensions DisableDelayedExpansion
+REM ============================================================================
+REM  Print Spooler Queue Cleanup (Windows batch front-end)
+REM ----------------------------------------------------------------------------
+REM  Author : Mikhail Deynekin
+REM  E-Mail : Mikhail@Deynekin.com
+REM  Site   : https://Deynekin.com
+REM  GitHub : https://github.com/paulmann/Print-Spooler-Queue-Cleanup
+REM
+REM  Version: 3.1.0 (full rewrite to match the PowerShell script's safety model:
+REM           robust admin check, locale-independent size accounting via
+REM           PowerShell helper, predictable exit codes, /WhatIf and /Force,
+REM           best-effort spooler recovery on failure, and an opt-in /UsePS
+REM           mode that delegates the cleanup to Clear-PrintSpoolerQueue.ps1).
+REM
+REM  Description:
+REM    Stops the Windows Print Spooler service, removes residual *.SHD/*.SPL
+REM    files from the active spool directory, and restarts the service.
+REM    The deletion step is intentionally limited to *.SHD and *.SPL — no other
+REM    files in the spool directory are ever touched.
+REM
+REM  Exit codes:
+REM    0  Success
+REM    1  Generic / fatal error (admin missing, spool dir missing, service
+REM       failed to stop or start, etc.)
+REM    2  Completed with warnings (some files could not be deleted, but the
+REM       Spooler is running again)
+REM    3  Bad command line arguments
+REM    4  Cancelled by user (interactive confirmation declined)
+REM ============================================================================
 
-:: ==============================================================================
-:: Enhanced Print Spooler Queue Cleanup v3.0
-:: ==============================================================================
-:: Author: Mikhail Deynekin
-:: E-Mail: mid1977@gmail.com
-:: Web: https://Deynekin.COM
-:: GitHub: https://github.com/mdeynekin/Print-Spooler-Queue-Cleanup
-:: ------------------------------------------------------------------------------
-:: Description: Safely clears stuck print jobs and resets the Print Spooler service
-::              with comprehensive error handling, logging, and cross-version compatibility.
-:: ==============================================================================
+setlocal EnableExtensions EnableDelayedExpansion
 
-:: Initialize variables
-set "SCRIPT_VERSION=3.0"
-set "LOG_FILE=%~dpn0.log"
-set "SPOOL_DIR="
-set "FILES_DELETED=0"
-set "SPL_DELETED=0"
-set "SHD_DELETED=0"
-set "SPACE_FREED=0"
-set "ERROR_COUNT=0"
-set "OS_MAJOR_VER=0"
+REM --- Constants ---------------------------------------------------------------
+set "SCRIPT_VERSION=3.1.0"
+set "SCRIPT_NAME=%~nx0"
+set "SCRIPT_DIR=%~dp0"
+set "SERVICE_NAME=Spooler"
+set "PS_SCRIPT=%SCRIPT_DIR%Clear-PrintSpoolerQueue.ps1"
 
-:: Detect Windows version for compatibility
-for /f "tokens=4-5 delims=. " %%i in ('ver') do set "OS_MAJOR_VER=%%i"
-if %OS_MAJOR_VER% LSS 6 (
-    set "LEGACY_MODE=1"
-) else (
-    set "LEGACY_MODE=0"
+REM --- Defaults / parsed flags -------------------------------------------------
+set "FLAG_FORCE=0"
+set "FLAG_WHATIF=0"
+set "FLAG_USEPS=0"
+set "FLAG_QUIET=0"
+set "FLAG_NOPAUSE=0"
+set "ARG_LOGPATH="
+
+REM --- Argument parsing --------------------------------------------------------
+:parse_args
+if "%~1"=="" goto args_done
+set "_arg=%~1"
+if /I "!_arg!"=="/?"        goto show_help
+if /I "!_arg!"=="-?"        goto show_help
+if /I "!_arg!"=="/h"        goto show_help
+if /I "!_arg!"=="-h"        goto show_help
+if /I "!_arg!"=="/help"     goto show_help
+if /I "!_arg!"=="--help"    goto show_help
+if /I "!_arg!"=="/version"  goto show_version
+if /I "!_arg!"=="--version" goto show_version
+if /I "!_arg!"=="-v"        goto show_version
+if /I "!_arg!"=="/force"    ( set "FLAG_FORCE=1"   & shift & goto parse_args )
+if /I "!_arg!"=="-force"    ( set "FLAG_FORCE=1"   & shift & goto parse_args )
+if /I "!_arg!"=="/y"        ( set "FLAG_FORCE=1"   & shift & goto parse_args )
+if /I "!_arg!"=="/whatif"   ( set "FLAG_WHATIF=1"  & shift & goto parse_args )
+if /I "!_arg!"=="-whatif"   ( set "FLAG_WHATIF=1"  & shift & goto parse_args )
+if /I "!_arg!"=="/dry-run"  ( set "FLAG_WHATIF=1"  & shift & goto parse_args )
+if /I "!_arg!"=="/useps"    ( set "FLAG_USEPS=1"   & shift & goto parse_args )
+if /I "!_arg!"=="-useps"    ( set "FLAG_USEPS=1"   & shift & goto parse_args )
+if /I "!_arg!"=="/quiet"    ( set "FLAG_QUIET=1"   & shift & goto parse_args )
+if /I "!_arg!"=="-quiet"    ( set "FLAG_QUIET=1"   & shift & goto parse_args )
+if /I "!_arg!"=="/nopause"  ( set "FLAG_NOPAUSE=1" & shift & goto parse_args )
+if /I "!_arg!"=="-nopause"  ( set "FLAG_NOPAUSE=1" & shift & goto parse_args )
+if /I "!_arg!"=="/log"      ( set "ARG_LOGPATH=%~2" & shift & shift & goto parse_args )
+if /I "!_arg!"=="-log"      ( set "ARG_LOGPATH=%~2" & shift & shift & goto parse_args )
+echo ERROR: Unknown argument: !_arg!
+echo Run "%SCRIPT_NAME% /?" for usage.
+endlocal & exit /b 3
+:args_done
+
+REM --- Logging setup -----------------------------------------------------------
+REM Build a locale-independent timestamp YYYYMMDD-HHMMSS. PowerShell is the
+REM most reliable source on modern Windows (wmic was removed in Win11 24H2+);
+REM fall back to wmic, then to the %DATE%/%TIME% variables.
+set "TS="
+where powershell.exe >nul 2>&1
+if not errorlevel 1 (
+    for /f "usebackq delims=" %%T in (`powershell.exe -NoProfile -Command "Get-Date -Format 'yyyyMMdd-HHmmss'"`) do set "TS=%%T"
+)
+if not defined TS (
+    for /f "tokens=2 delims==." %%a in (
+        'wmic os get LocalDateTime /value 2^>nul ^| find "="'
+    ) do set "_LDT=%%a"
+    if defined _LDT set "TS=!_LDT:~0,8!-!_LDT:~8,6!"
+)
+if not defined TS (
+    set "_d=%DATE: =0%"
+    set "_t=%TIME: =0%"
+    set "TS=!_d:~-4!!_d:~-7,2!!_d:~-10,2!-!_t:~0,2!!_t:~3,2!!_t:~6,2!"
+    set "TS=!TS::=!"
 )
 
-:: Main execution flow
-call :Initialize
-if errorlevel 1 exit /b 1
+if not defined ARG_LOGPATH (
+    set "LOG_FILE=%SCRIPT_DIR%Clear-PrintSpoolerQueue_!TS!.log"
+) else (
+    set "LOG_FILE=!ARG_LOGPATH!"
+)
 
-call :CheckAdminRights
-if errorlevel 1 exit /b 1
+REM Touch the log file so later appends can't silently fail on a missing dir.
+> "!LOG_FILE!" echo [%DATE% %TIME%] [INFO] Script v%SCRIPT_VERSION% started.
+if errorlevel 1 (
+    echo WARNING: Could not create log file at: !LOG_FILE!
+    set "LOG_FILE="
+)
 
-call :GetSpoolerPaths
-if errorlevel 1 exit /b 1
+REM --- Counters ----------------------------------------------------------------
+set "SPL_BEFORE=0"
+set "SHD_BEFORE=0"
+set "TOTAL_BEFORE=0"
+set "BYTES_BEFORE=0"
+set "SPL_AFTER=0"
+set "SHD_AFTER=0"
+set "FILES_DELETED=0"
+set "ERROR_COUNT=0"
+set "EXIT_CODE=0"
 
-call :ScanSpoolDirectory
-if errorlevel 1 exit /b 1
-
-call :StopPrintSpooler
-if errorlevel 1 exit /b 1
-
-call :CleanSpoolDirectory
-if errorlevel 1 exit /b 1
-
-call :StartPrintSpooler
-if errorlevel 1 exit /b 1
-
-call :GenerateReport
-call :Finalize
-exit /b 0
-
-:: ==============================================================================
-:: FUNCTIONS
-:: ==============================================================================
-
-:Initialize
-    :: Set console title
-    title Print Spooler Queue Cleanup v%SCRIPT_VERSION%
-    
-    :: Display header
+REM --- Pretty header -----------------------------------------------------------
+title Print Spooler Queue Cleanup v%SCRIPT_VERSION%
+if "%FLAG_QUIET%"=="0" (
     echo ==============================================================================
-    echo       Print Spooler Queue Cleanup v%SCRIPT_VERSION%
+    echo     Print Spooler Queue Cleanup v%SCRIPT_VERSION%
+    echo     Author : Mikhail Deynekin ^<Mikhail@Deynekin.com^>
+    echo     Site   : https://Deynekin.com
+    echo     GitHub : https://github.com/paulmann/Print-Spooler-Queue-Cleanup
     echo ==============================================================================
-    echo Author: Mikhail Deynekin
-    echo GitHub: https://github.com/mdeynekin/Print-Spooler-Queue-Cleanup
-    echo ------------------------------------------------------------------------------
-    echo Description: Clears stuck print jobs and resets Print Spooler.
-    echo ==============================================================================
-    
-    :: Log initialization
-    call :LogMessage "INFO" "Script started (v%SCRIPT_VERSION%)"
-    exit /b 0
+    if "%FLAG_WHATIF%"=="1" echo MODE: WhatIf / dry-run -- no changes will be made.
+    if "%FLAG_USEPS%"=="1"  echo MODE: Delegating to PowerShell engine.
+    echo.
+)
+call :Log INFO "Args: Force=%FLAG_FORCE% WhatIf=%FLAG_WHATIF% UsePS=%FLAG_USEPS% Quiet=%FLAG_QUIET% Log=!LOG_FILE!"
 
-:CheckAdminRights
-    :: Verify administrative privileges
+REM --- Optional delegation to the PowerShell script ---------------------------
+if "%FLAG_USEPS%"=="1" (
+    if not exist "%PS_SCRIPT%" (
+        call :Status ERROR "PowerShell script not found next to this batch: %PS_SCRIPT%"
+        set "EXIT_CODE=1"
+        goto :finish
+    )
+    set "PS_ARGS=-NoProfile -ExecutionPolicy Bypass -File ""%PS_SCRIPT%"""
+    if "%FLAG_FORCE%"=="1"  set "PS_ARGS=!PS_ARGS! -Force"
+    if "%FLAG_WHATIF%"=="1" set "PS_ARGS=!PS_ARGS! -WhatIf"
+    if defined ARG_LOGPATH  set "PS_ARGS=!PS_ARGS! -LogPath ""!ARG_LOGPATH!"""
+    call :Status INFO "Invoking: powershell.exe !PS_ARGS!"
+    powershell.exe !PS_ARGS!
+    set "EXIT_CODE=!ERRORLEVEL!"
+    goto :finish
+)
+
+REM --- Admin check -------------------------------------------------------------
+call :CheckAdmin
+if errorlevel 1 ( set "EXIT_CODE=1" & goto :finish )
+
+REM --- Resolve spool directory (registry override -> default) -----------------
+call :ResolveSpoolDir
+if errorlevel 1 ( set "EXIT_CODE=1" & goto :finish )
+
+REM --- Pre-cleanup scan --------------------------------------------------------
+call :ScanSpoolDir
+
+REM --- Confirmation ------------------------------------------------------------
+if "%FLAG_WHATIF%"=="1" (
+    call :Status INFO "WhatIf: would stop %SERVICE_NAME%, delete %TOTAL_BEFORE% files (%BYTES_BEFORE% bytes), restart %SERVICE_NAME%."
+    set "EXIT_CODE=0"
+    goto :finish
+)
+
+if "%FLAG_FORCE%"=="0" if "%FLAG_QUIET%"=="0" (
+    echo.
+    set /p "_confirm=Proceed with cleanup of !TOTAL_BEFORE! file(s) in !SPOOL_DIR! ? [Y/N] "
+    if /I not "!_confirm!"=="Y" (
+        call :Status WARN "User declined the operation."
+        set "EXIT_CODE=4"
+        goto :finish
+    )
+)
+
+REM --- Stop service ------------------------------------------------------------
+call :StopSpooler
+if errorlevel 1 ( set "EXIT_CODE=1" & goto :finish )
+
+REM --- Delete spool files ------------------------------------------------------
+call :CleanSpoolDir
+
+REM --- Always attempt to start service, even if cleanup had errors ------------
+call :StartSpooler
+if errorlevel 1 set "EXIT_CODE=1"
+
+REM --- Post-cleanup scan -------------------------------------------------------
+call :PostScan
+
+REM --- Decide final exit code --------------------------------------------------
+if "%EXIT_CODE%"=="0" (
+    if !ERROR_COUNT! GTR 0 (
+        set "EXIT_CODE=2"
+    )
+)
+
+REM --- Report ------------------------------------------------------------------
+call :Report
+
+:finish
+if defined LOG_FILE call :Log INFO "Script finished with exit code !EXIT_CODE!."
+if "%FLAG_QUIET%"=="0" if "%FLAG_NOPAUSE%"=="0" (
+    echo.
+    echo Press any key to exit . . .
+    pause >nul
+)
+endlocal & exit /b %EXIT_CODE%
+
+
+REM ============================================================================
+REM  Subroutines
+REM ============================================================================
+
+:show_help
+    echo.
+    echo Print Spooler Queue Cleanup v%SCRIPT_VERSION%
+    echo Author: Mikhail Deynekin ^<Mikhail@Deynekin.com^> -- https://Deynekin.com
+    echo.
+    echo USAGE:
+    echo     %SCRIPT_NAME% [/Force] [/WhatIf] [/UsePS] [/Quiet] [/NoPause] [/Log ^<file^>]
+    echo     %SCRIPT_NAME% /?
+    echo     %SCRIPT_NAME% /Version
+    echo.
+    echo OPTIONS:
+    echo     /Force      Skip the interactive Y/N confirmation prompt.
+    echo     /WhatIf     Dry-run -- report what would happen, change nothing.
+    echo     /UsePS      Delegate the cleanup to Clear-PrintSpoolerQueue.ps1
+    echo                 (recommended for advanced features such as remote
+    echo                 cleanup, verbose logging, and finer error reporting).
+    echo     /Quiet      Suppress decorative output (logging is still written).
+    echo     /NoPause    Do not pause for "press any key" before exiting.
+    echo     /Log ^<file^>  Write the log to ^<file^> instead of an auto-named log.
+    echo     /?          Show this help and exit.
+    echo     /Version    Show script version and exit.
+    echo.
+    echo EXIT CODES:
+    echo     0  Success
+    echo     1  Fatal error (admin missing, service failure, ...)
+    echo     2  Completed with warnings (Spooler restarted, but some files
+    echo        could not be deleted)
+    echo     3  Bad command line arguments
+    echo     4  Cancelled by user
+    echo.
+    endlocal & exit /b 0
+
+:show_version
+    echo %SCRIPT_NAME% v%SCRIPT_VERSION%
+    endlocal & exit /b 0
+
+REM ----------------------------------------------------------------------------
+REM  :Log <LEVEL> <MESSAGE>
+REM    Append a single timestamped line to the log file. Never aborts the run.
+REM ----------------------------------------------------------------------------
+:Log
+    if not defined LOG_FILE goto :eof
+    set "_lvl=%~1"
+    set "_msg=%~2"
+    >> "!LOG_FILE!" echo [%DATE% %TIME%] [!_lvl!] !_msg!
+    goto :eof
+
+REM ----------------------------------------------------------------------------
+REM  :Status <LEVEL> <MESSAGE>
+REM    Print a status line to the console (unless /Quiet) AND log it.
+REM    LEVEL is one of: INFO | OK | WARN | ERROR
+REM ----------------------------------------------------------------------------
+:Status
+    set "_lvl=%~1"
+    set "_msg=%~2"
+    if "%FLAG_QUIET%"=="0" (
+        echo [!_lvl!] !_msg!
+    )
+    call :Log "!_lvl!" "!_msg!"
+    goto :eof
+
+REM ----------------------------------------------------------------------------
+REM  :CheckAdmin
+REM    Verify elevated privileges via "net session". Exit 1 on failure.
+REM ----------------------------------------------------------------------------
+:CheckAdmin
     net session >nul 2>&1
-    if %errorlevel% neq 0 (
+    if errorlevel 1 (
+        call :Status ERROR "Administrator privileges are required."
+        if "%FLAG_QUIET%"=="0" (
+            echo Right-click the script and choose "Run as administrator", or
+            echo invoke it from an elevated cmd.exe / PowerShell session.
+        )
+        exit /b 1
+    )
+    call :Status OK "Administrator privileges confirmed."
+    exit /b 0
+
+REM ----------------------------------------------------------------------------
+REM  :ResolveSpoolDir
+REM    Resolve the active spool directory. Honors a custom path stored in
+REM    HKLM\SYSTEM\CurrentControlSet\Control\Print\Printers!DefaultSpoolDirectory.
+REM    Falls back to %SystemRoot%\System32\spool\PRINTERS.
+REM ----------------------------------------------------------------------------
+:ResolveSpoolDir
+    set "SPOOL_DIR="
+    for /f "tokens=2,*" %%A in (
+        'reg query "HKLM\SYSTEM\CurrentControlSet\Control\Print\Printers" /v DefaultSpoolDirectory 2^>nul ^| find /I "DefaultSpoolDirectory"'
+    ) do (
+        set "SPOOL_DIR=%%B"
+    )
+    if not defined SPOOL_DIR set "SPOOL_DIR=%SystemRoot%\System32\spool\PRINTERS"
+    REM Strip surrounding quotes if any.
+    set "SPOOL_DIR=!SPOOL_DIR:"=!"
+
+    if not exist "!SPOOL_DIR!\" (
+        call :Status ERROR "Spool directory not found: !SPOOL_DIR!"
+        exit /b 1
+    )
+    call :Status INFO "Spool directory: !SPOOL_DIR!"
+    exit /b 0
+
+REM ----------------------------------------------------------------------------
+REM  :ScanSpoolDir
+REM    Count *.SPL/*.SHD files and total size. Locale-independent: uses
+REM    PowerShell when available (correctly sums file lengths) and falls
+REM    back to a pure-cmd file count when PowerShell is missing.
+REM ----------------------------------------------------------------------------
+:ScanSpoolDir
+    set "SPL_BEFORE=0"
+    set "SHD_BEFORE=0"
+    set "BYTES_BEFORE=0"
+
+    for /f %%i in ('dir /b /a-d "!SPOOL_DIR!\*.SPL" 2^>nul ^| find /c /v ""') do set "SPL_BEFORE=%%i"
+    for /f %%i in ('dir /b /a-d "!SPOOL_DIR!\*.SHD" 2^>nul ^| find /c /v ""') do set "SHD_BEFORE=%%i"
+    set /a "TOTAL_BEFORE=SPL_BEFORE + SHD_BEFORE"
+
+    REM Try PowerShell for an exact byte total (locale-independent).
+    where powershell.exe >nul 2>&1
+    if not errorlevel 1 (
+        for /f "usebackq delims=" %%S in (`powershell.exe -NoProfile -Command "$d=Get-ChildItem -LiteralPath '!SPOOL_DIR!' -File -Force -ErrorAction SilentlyContinue ^| Where-Object { $_.Extension -ieq '.SPL' -or $_.Extension -ieq '.SHD' }; if ($d) { ($d ^| Measure-Object Length -Sum).Sum } else { 0 }"`) do (
+            set "BYTES_BEFORE=%%S"
+        )
+    )
+
+    if "%FLAG_QUIET%"=="0" (
+        echo Pre-cleanup scan:
+        echo     SPL files : !SPL_BEFORE!
+        echo     SHD files : !SHD_BEFORE!
+        echo     Total     : !TOTAL_BEFORE! file(s), !BYTES_BEFORE! byte(s)
         echo.
-        echo ERROR: Administrative privileges required.
-        echo Please run this script as Administrator.
-        echo.
-        call :LogMessage "ERROR" "Administrative privileges not detected"
-        exit /b 1
     )
-    
-    echo Administrative privileges confirmed.
-    echo.
-    call :LogMessage "INFO" "Administrative privileges confirmed"
+    call :Log INFO "Pre-cleanup: SPL=!SPL_BEFORE! SHD=!SHD_BEFORE! Total=!TOTAL_BEFORE! Bytes=!BYTES_BEFORE!"
     exit /b 0
 
-:GetSpoolerPaths
-    :: Get system paths dynamically
-    set "SPOOL_DIR=%SystemRoot%\System32\spool\PRINTERS"
-    
-    :: Verify spool directory exists
-    if not exist "%SPOOL_DIR%" (
-        echo ERROR: Spool directory not found: %SPOOL_DIR%
-        call :LogMessage "ERROR" "Spool directory not found: %SPOOL_DIR%"
+REM ----------------------------------------------------------------------------
+REM  :StopSpooler
+REM    Stop the Spooler service. Treats "service is already stopped" as success.
+REM    Uses sc.exe (richer than `net stop` for state queries) but falls back
+REM    to `net stop` for the actual stop call.
+REM ----------------------------------------------------------------------------
+:StopSpooler
+    call :Status INFO "Stopping %SERVICE_NAME% service..."
+    sc query %SERVICE_NAME% | find /I "STATE" | find /I "STOPPED" >nul 2>&1
+    if not errorlevel 1 (
+        call :Status OK "%SERVICE_NAME% was already stopped."
+        exit /b 0
+    )
+
+    net stop %SERVICE_NAME% /y >nul 2>&1
+    set "_rc=!ERRORLEVEL!"
+    if !_rc! NEQ 0 (
+        REM Re-check: a transient timing issue can return non-zero even on success.
+        sc query %SERVICE_NAME% | find /I "STATE" | find /I "STOPPED" >nul 2>&1
+        if not errorlevel 1 (
+            call :Status OK "%SERVICE_NAME% stopped."
+            exit /b 0
+        )
+        call :Status ERROR "Failed to stop %SERVICE_NAME% (exit code !_rc!)."
         exit /b 1
     )
-    
-    call :LogMessage "INFO" "Spool directory: %SPOOL_DIR%"
+    call :Status OK "%SERVICE_NAME% stopped."
     exit /b 0
 
-:ScanSpoolDirectory
-    :: Count files before cleanup
-    set "SPL_COUNT=0"
-    set "SHD_COUNT=0"
-    set "TOTAL_SIZE=0"
-    
-    :: Count SPL files
-    for /f %%i in ('dir /b "%SPOOL_DIR%\*.SPL" 2^>nul ^| find /c /v ""') do set "SPL_COUNT=%%i"
-    
-    :: Count SHD files
-    for /f %%i in ('dir /b "%SPOOL_DIR%\*.SHD" 2^>nul ^| find /c /v ""') do set "SHD_COUNT=%%i"
-    
-    :: Calculate total size
-    if %SPL_COUNT% gtr 0 (
-        for /f "usebackq tokens=3" %%a in (`dir "%SPOOL_DIR%\*.SPL" ^| findstr /i /c:"File(s)"`) do (
-            set "TOTAL_SIZE=%%a"
+REM ----------------------------------------------------------------------------
+REM  :CleanSpoolDir
+REM    Delete *.SHD and *.SPL files only. Counts deletions and tracks errors.
+REM    Per-file deletion (rather than `del *.SPL`) allows accurate failure
+REM    accounting and avoids aborting on the first locked file.
+REM ----------------------------------------------------------------------------
+:CleanSpoolDir
+    if !TOTAL_BEFORE! EQU 0 (
+        call :Status INFO "Spool directory already empty -- nothing to delete."
+        exit /b 0
+    )
+    call :Status INFO "Deleting *.SHD and *.SPL files in !SPOOL_DIR! ..."
+
+    for %%E in (SPL SHD) do (
+        for %%F in ("!SPOOL_DIR!\*.%%E") do (
+            if exist "%%~fF" (
+                del /f /q "%%~fF" >nul 2>&1
+                if exist "%%~fF" (
+                    set /a "ERROR_COUNT+=1"
+                    call :Log WARN "Could not delete: %%~fF"
+                ) else (
+                    set /a "FILES_DELETED+=1"
+                )
+            )
         )
     )
-    if %SHD_COUNT% gtr 0 (
-        for /f "usebackq tokens=3" %%a in (`dir "%SPOOL_DIR%\*.SHD" ^| findstr /i /c:"File(s)"`) do (
-            set /a "TOTAL_SIZE+=%TOTAL_SIZE%"
-        )
-    )
-    
-    :: Display pre-cleanup status
-    echo Files detected before cleanup:
-    echo   SPL files: %SPL_COUNT%
-    echo   SHD files: %SHD_COUNT%
-    echo   Total files: %SPL_COUNT% + %SHD_COUNT% = %SPL_COUNT%
-    set /a "TOTAL_FILES=%SPL_COUNT% + %SHD_COUNT%"
-    echo   Total files: %TOTAL_FILES%
-    
-    :: Format size display
-    if %TOTAL_SIZE% gtr 0 (
-        set /a "SIZE_MB=%TOTAL_SIZE% / 1024"
-        echo   Total size: %TOTAL_SIZE% bytes (~%SIZE_MB% MB)
+
+    if !ERROR_COUNT! GTR 0 (
+        call :Status WARN "Deleted !FILES_DELETED! file(s); !ERROR_COUNT! could not be removed (likely locked)."
     ) else (
-        echo   Total size: 0 bytes
+        call :Status OK "Deleted !FILES_DELETED! file(s)."
     )
-    echo.
-    
-    call :LogMessage "INFO" "Pre-cleanup scan: %TOTAL_FILES% files (%TOTAL_SIZE% bytes)"
     exit /b 0
 
-:StopPrintSpooler
-    echo Stopping Print Spooler service...
-    net stop Spooler /y >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo ERROR: Failed to stop Print Spooler service.
-        call :LogMessage "ERROR" "Failed to stop Print Spooler service (error %errorlevel%)"
+REM ----------------------------------------------------------------------------
+REM  :StartSpooler
+REM    Start the Spooler service and verify it reaches RUNNING.
+REM ----------------------------------------------------------------------------
+:StartSpooler
+    call :Status INFO "Starting %SERVICE_NAME% service..."
+    net start %SERVICE_NAME% >nul 2>&1
+    set "_rc=!ERRORLEVEL!"
+
+    REM Always verify state, even when net start returns 0.
+    sc query %SERVICE_NAME% | find /I "STATE" | find /I "RUNNING" >nul 2>&1
+    if errorlevel 1 (
+        call :Status ERROR "Failed to start %SERVICE_NAME% (net rc=!_rc!). Printing will be unavailable until the service is running."
         exit /b 1
     )
-    
-    echo Spooler service stopped successfully.
-    echo.
-    call :LogMessage "INFO" "Print Spooler service stopped"
+    call :Status OK "%SERVICE_NAME% is running."
     exit /b 0
 
-:CleanSpoolDirectory
-    :: Delete SPL files
-    if exist "%SPOOL_DIR%\*.SPL" (
-        del /q "%SPOOL_DIR%\*.SPL" >nul 2>&1
-        if %errorlevel% equ 0 (
-            set "SPL_DELETED=%SPL_COUNT%"
-            set /a "FILES_DELETED+=%SPL_COUNT%"
-        ) else (
-            set /a "ERROR_COUNT+=1"
-            call :LogMessage "WARNING" "Failed to delete some SPL files"
-        )
-    )
-    
-    :: Delete SHD files
-    if exist "%SPOOL_DIR%\*.SHD" (
-        del /q "%SPOOL_DIR%\*.SHD" >nul 2>&1
-        if %errorlevel% equ 0 (
-            set "SHD_DELETED=%SHD_COUNT%"
-            set /a "FILES_DELETED+=%SHD_COUNT%"
-        ) else (
-            set /a "ERROR_COUNT+=1"
-            call :LogMessage "WARNING" "Failed to delete some SHD files"
-        )
-    )
-    
-    :: Calculate space freed
-    set "SPACE_FREED=%TOTAL_SIZE%"
-    
-    :: Display deletion results
-    echo Cleaning spool directory: %SPOOL_DIR%
-    echo Deleted %SPL_DELETED% SPL files.
-    echo Deleted %SHD_DELETED% SHD files.
-    echo.
-    
-    call :LogMessage "INFO" "Cleanup completed: %FILES_DELETED% files deleted (%SPACE_FREED% bytes freed)"
+REM ----------------------------------------------------------------------------
+REM  :PostScan
+REM    Re-count *.SPL/*.SHD after cleanup to confirm the directory is empty.
+REM ----------------------------------------------------------------------------
+:PostScan
+    set "SPL_AFTER=0"
+    set "SHD_AFTER=0"
+    for /f %%i in ('dir /b /a-d "!SPOOL_DIR!\*.SPL" 2^>nul ^| find /c /v ""') do set "SPL_AFTER=%%i"
+    for /f %%i in ('dir /b /a-d "!SPOOL_DIR!\*.SHD" 2^>nul ^| find /c /v ""') do set "SHD_AFTER=%%i"
+    call :Log INFO "Post-cleanup: SPL=!SPL_AFTER! SHD=!SHD_AFTER!"
     exit /b 0
 
-:StartPrintSpooler
-    echo Restarting Print Spooler service...
-    net start Spooler >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo ERROR: Failed to restart Print Spooler service.
-        call :LogMessage "ERROR" "Failed to restart Print Spooler service (error %errorlevel%)"
-        exit /b 1
-    )
-    
-    echo Spooler service restarted successfully.
+REM ----------------------------------------------------------------------------
+REM  :Report
+REM    Print a human-readable summary.
+REM ----------------------------------------------------------------------------
+:Report
+    if "%FLAG_QUIET%"=="1" goto :eof
     echo.
-    call :LogMessage "INFO" "Print Spooler service restarted"
-    exit /b 0
-
-:GenerateReport
     echo ==============================================================================
-    echo                      OPERATION SUMMARY
+    echo                          OPERATION SUMMARY
     echo ==============================================================================
-    
-    :: Calculate space freed in MB
-    if %SPACE_FREED% gtr 0 (
-        set /a "SPACE_MB=%SPACE_FREED% / 1024"
-    ) else (
-        set "SPACE_MB=0"
-    )
-    
-    echo Files processed: %TOTAL_FILES%
-    echo Files deleted:   %FILES_DELETED%
-    echo SPL files:       %SPL_DELETED%
-    echo SHD files:       %SHD_DELETED%
-    echo Space freed:     %SPACE_FREED% bytes (~%SPACE_MB% MB)
-    echo Errors:          %ERROR_COUNT%
-    echo.
-    
-    call :LogMessage "INFO" "Operation summary - Files: %FILES_DELETED%/%TOTAL_FILES%, Space: %SPACE_FREED% bytes, Errors: %ERROR_COUNT%"
-    exit /b 0
-
-:Finalize
-    call :LogMessage "INFO" "Script completed successfully"
-    if %LEGACY_MODE% equ 0 (
-        timeout /t 5 >nul
-    ) else (
-        ping -n 6 127.0.0.1 >nul
-    )
-    exit /b 0
-
-:LogMessage
-    set "LEVEL=%~1"
-    set "MESSAGE=%~2"
-    echo [%date% %time:~0,8%] [%LEVEL%] %MESSAGE% >> "%LOG_FILE%"
-    exit /b 0
+    echo     Spool directory  : !SPOOL_DIR!
+    echo     Files before     : !TOTAL_BEFORE! (SPL=!SPL_BEFORE!, SHD=!SHD_BEFORE!)
+    echo     Files after      : %SPL_AFTER% SPL + %SHD_AFTER% SHD remaining
+    echo     Files deleted    : !FILES_DELETED!
+    echo     Bytes processed  : !BYTES_BEFORE!
+    echo     Errors           : !ERROR_COUNT!
+    echo     Exit code        : !EXIT_CODE!
+    if defined LOG_FILE echo     Log file         : !LOG_FILE!
+    echo ==============================================================================
+    goto :eof
