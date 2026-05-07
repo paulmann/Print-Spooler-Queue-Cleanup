@@ -1,422 +1,518 @@
 <#
 .SYNOPSIS
-    Advanced PowerShell script for forcibly clearing Windows Print Spooler queue
-    with comprehensive logging, error handling, and professional system administration features.
+    Forcibly clears the Windows Print Spooler queue on local or remote computers
+    with logging, error handling, and safe service stop/start orchestration.
 
 .DESCRIPTION
-    This script provides enterprise-grade functionality for clearing print queue stuck jobs.
-    Fully compatible with PowerShell 5.1 and PowerShell 7+.
-    
-    Key Features:
-    - Real-time status monitoring with beautiful, color-coded console output (emojis & colors)
-    - Comprehensive error handling with detailed logging and service recovery attempts
-    - Detailed statistics tracking (jobs cleared, files processed, execution time)
-    - Administrator privilege and PowerShell version verification
-    - Service state validation with timeout handling
-    - Professional header and progress indication for all major operations
-    - Modular design with clear separation of concerns
-    - Support for remote execution on multiple computers (ComputerName parameter)
-    - WhatIf and Confirm support for safe execution planning
+    Senior-level system-administration utility for clearing stuck print jobs.
+    Compatible with Windows PowerShell 5.1 and PowerShell 7+.
+
+    Behavior:
+    - Stops the Spooler service safely (with timeout and recovery on failure).
+    - Removes residual *.SHD / *.SPL files from the active spool directory.
+    - Restarts the Spooler service and verifies its running state.
+    - Supports local execution and remote execution via Invoke-Command (WinRM).
+    - Honors -WhatIf / -Confirm semantics on the destructive cleanup step.
 
 .PARAMETER ComputerName
-    Specifies the target computer(s) on which to perform the cleanup.
-    Accepts an array of computer names or IP addresses for bulk operations.
-    The default is the local computer ('localhost').
+    One or more target computers. Defaults to the local machine.
+    Pipeline input is supported.
 
 .PARAMETER LogPath
-    Specifies the full path for the log file.
-    If not provided, a timestamped log file (e.g., Clear-PrintSpoolerQueue_20240521-120000.log)
-    will be created in the same directory as the script.
+    Full path to the log file. If omitted, a timestamped log file is created
+    next to the script (Clear-PrintSpoolerQueue_yyyyMMdd-HHmmss.log).
 
 .PARAMETER Force
-    Skips the interactive confirmation prompt before performing the cleanup.
-    Use this switch for automated or unattended execution.
+    Skip the interactive confirmation prompt.
+
+.PARAMETER ServiceTimeoutSeconds
+    Maximum time, in seconds, to wait for the Spooler service to reach the
+    desired state (Stopped or Running). Default: 30.
 
 .EXAMPLE
     .\Clear-PrintSpoolerQueue.ps1
-    Executes the print spooler cleanup on the local machine with confirmation prompt.
+    Cleans the local spooler queue with confirmation.
 
 .EXAMPLE
-    .\Clear-PrintSpoolerQueue.ps1 -ComputerName "PRINT-SRV01", "PRINT-SRV02" -Force
-    Clears the print queue on two remote servers without prompting for confirmation.
+    .\Clear-PrintSpoolerQueue.ps1 -ComputerName "SERVER01","PC-FINANCE" -Force
+    Bulk cleanup on two remote machines without prompting (requires WinRM).
 
 .EXAMPLE
     .\Clear-PrintSpoolerQueue.ps1 -WhatIf
-    Shows what actions would be performed without making any changes to the system.
+    Reports what would happen without changing anything.
 
 .EXAMPLE
-    .\Clear-PrintSpoolerQueue.ps1 -LogPath "C:\Admin\Logs\SpoolerCleanup.log" -Verbose
-    Runs the cleanup with verbose output and saves the log to a custom location.
-
-.AUTHOR
-    Mikhail Deynekin (mid1977@gmail.com)
-    Website: https://deynekin.com
-
-.GITHUB
-    https://github.com/paulmann/Print-Spooler-Queue-Cleanup
+    .\Clear-PrintSpoolerQueue.ps1 -LogPath 'C:\Admin\Logs\SpoolerCleanup.log' -Verbose
+    Runs with verbose tracing and a custom log path.
 
 .NOTES
-    Version: 3.0 Professional Cross-Version Edition
+    Author : Mikhail Deynekin
+    Email  : Mikhail@Deynekin.com
+    Site   : https://Deynekin.com
+    GitHub : https://github.com/paulmann/Print-Spooler-Queue-Cleanup
+
+    Script Version: 3.1.0 (full rewrite — fixes invalid top-level begin/process/end
+    blocks, removes PS7-incompatible -ComputerName usage on Get-Service/Stop-Service,
+    fixes Clear-SpoolFiles remote scriptblock variable scoping, hardens error handling).
+
     Requirements:
-    - PowerShell 5.1 or later
-    - Administrator privileges required for local execution
-    - Windows Print Spooler service must be installed on target machines
+    - Windows PowerShell 5.1 or PowerShell 7+
+    - Administrator privileges for local execution
+    - WinRM enabled on remote targets (Invoke-Command transport)
 #>
 
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param (
-    [Parameter(ValueFromPipeline = $true)]
-    [string[]]$ComputerName = @('localhost'),
+    [Parameter(ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string[]]$ComputerName = @($env:COMPUTERNAME),
+
+    [Parameter()]
     [string]$LogPath,
-    [switch]$Force
+
+    [Parameter()]
+    [switch]$Force,
+
+    [Parameter()]
+    [ValidateRange(5, 600)]
+    [int]$ServiceTimeoutSeconds = 30
 )
 
-# Enable strict mode for better error handling in all versions
-Set-StrictMode -Version Latest
-
 begin {
-    $ScriptVersion = "3.0-Professional-CrossVersion"
-    $StartTime = Get-Date
-    $ScriptName = $MyInvocation.MyCommand.Name
-    $ScriptPath = $MyInvocation.MyCommand.Path
-    $ScriptDirectory = Split-Path -Parent $ScriptPath
+    # NOTE: In a PowerShell *script*, the named blocks begin/process/end must
+    # follow the param() block immediately, with no other statements between
+    # them. Set-StrictMode and any other initialization therefore live INSIDE
+    # the begin block, not between param and begin.
+    Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
 
-    # Configuration
-    $ScriptConfig = @{
-        ServiceName      = 'Spooler'
+    $script:ScriptVersion = '3.1.0'
+    $script:StartTime     = Get-Date
+    $script:LocalNames    = @('localhost', '.', '127.0.0.1', $env:COMPUTERNAME) |
+                            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+
+    $script:Config = @{
+        ServiceName       = 'Spooler'
         RequiredPSVersion = [Version]'5.1'
-        WaitTimeSeconds  = 3
-        LogPrefix        = '[Print Spooler Cleanup]'
+        SettleSeconds     = 3
+        LogPrefix         = '[Print Spooler Cleanup]'
     }
 
-    # Statistics object
-    $Global:Statistics = @{
-        StartTime        = $StartTime
-        EndTime          = $null
-        FilesProcessed   = 0
-        JobsCleared      = 0
-        ErrorsEncountered = 0
-        OperationResult  = 'Unknown'
+    $script:Stats = [ordered]@{
+        StartTime         = $script:StartTime
+        EndTime           = $null
+        ComputersAttempted = 0
+        ComputersSucceeded = 0
+        ComputersFailed    = 0
+        FilesProcessed     = 0
+        JobsCleared        = 0
+        ErrorsEncountered  = 0
+        OperationResult    = 'Unknown'
+    }
+
+    # Resolve script directory robustly (works when dot-sourced, run via -File, etc.)
+    $invocationPath = $MyInvocation.MyCommand.Path
+    if ($invocationPath) {
+        $script:ScriptDirectory = Split-Path -Parent $invocationPath
+    } elseif ($PSScriptRoot) {
+        $script:ScriptDirectory = $PSScriptRoot
+    } else {
+        $script:ScriptDirectory = (Get-Location).Path
     }
 
     if (-not $LogPath) {
-        $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-        $LogPath = Join-Path -Path $ScriptDirectory -ChildPath "Clear-PrintSpoolerQueue_$Timestamp.log"
+        $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+        $LogPath = Join-Path -Path $script:ScriptDirectory -ChildPath "Clear-PrintSpoolerQueue_$stamp.log"
     }
+    $script:LogPath = $LogPath
 
-    # --- Helper Functions ---
+    #region Helper functions
+
+    # Function Version: 1.0.0
     function Write-Log {
-        param([string]$Message, [ValidateSet('INFO', 'WARN', 'ERROR', 'DEBUG')][string]$Level = 'INFO')
-        $Timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-        $LogEntry = "[$Timestamp] [$Level] $Message"
-        Write-Verbose $LogEntry
-        try { "$LogEntry" | Out-File -FilePath $LogPath -Append -Encoding UTF8 -ErrorAction Stop }
-        catch { Write-Error "Log write failed: $_" }
-    }
-
-    function Write-HeaderMessage {
-        $headerLines = @(
-            ("═" * 80),
-            "    PowerShell Print Spooler Queue Cleanup Utility v$ScriptVersion",
-            "    Professional System Administrator Tool",
-            "    Author: Mikhail Deynekin",
-            "    GitHub: https://github.com/mdeynekin/Print-Spooler-Queue-Cleanup",
-            ("═" * 80),
-            ""
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)][string]$Message,
+            [ValidateSet('INFO', 'WARN', 'ERROR', 'DEBUG')][string]$Level = 'INFO'
         )
-        foreach ($line in $headerLines) {
-            Write-Host $line -ForegroundColor Cyan
+        $entry = "[{0}] [{1}] {2}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Level, $Message
+        Write-Verbose $entry
+        try {
+            Add-Content -Path $script:LogPath -Value $entry -Encoding UTF8 -ErrorAction Stop
+        } catch {
+            # Never let logging failures abort the run; surface once on the host.
+            Write-Warning ("Log write failed ({0}): {1}" -f $script:LogPath, $_.Exception.Message)
         }
     }
 
+    # Function Version: 1.0.0
     function Write-StatusMessage {
+        [CmdletBinding()]
         param(
-            [Parameter(Mandatory)]
-            [string]$Message,
-            [ValidateSet('Info', 'Success', 'Warning', 'Error', 'Progress')]
-            [string]$Level = 'Info'
+            [Parameter(Mandatory)][string]$Message,
+            [ValidateSet('Info', 'Success', 'Warning', 'Error', 'Progress')][string]$Level = 'Info'
         )
-        $timestamp = Get-Date -Format 'HH:mm:ss'
-        $prefix = "$($ScriptConfig.LogPrefix) [$timestamp]"
-        # Map levels to icons and colors
-        $iconMap = @{ 'Info' = 'ℹ'; 'Success' = '✓'; 'Warning' = '⚠'; 'Error' = '✗'; 'Progress' = '►' }
-        $colorMap = @{ 'Info' = 'White'; 'Success' = 'Green'; 'Warning' = 'Yellow'; 'Error' = 'Red'; 'Progress' = 'Cyan' }
-        $icon = $iconMap[$Level]
-        $color = $colorMap[$Level]
-        $formattedMessage = "$prefix $icon $Message"
-        Write-Host $formattedMessage -ForegroundColor $color
-        # Also log it
+        $iconMap  = @{ Info = 'i'; Success = 'OK'; Warning = '!'; Error = 'X'; Progress = '>' }
+        $colorMap = @{ Info = 'White'; Success = 'Green'; Warning = 'Yellow'; Error = 'Red'; Progress = 'Cyan' }
+        $line = "{0} [{1}] {2} {3}" -f $script:Config.LogPrefix, (Get-Date -Format 'HH:mm:ss'), $iconMap[$Level], $Message
+        Write-Host $line -ForegroundColor $colorMap[$Level]
         $logLevel = switch ($Level) { 'Warning' { 'WARN' } 'Error' { 'ERROR' } default { 'INFO' } }
         Write-Log -Message $Message -Level $logLevel
     }
 
+    # Function Version: 1.0.0
+    function Write-HeaderMessage {
+        $bar = ('=' * 78)
+        $lines = @(
+            $bar,
+            "    Print Spooler Queue Cleanup Utility v$script:ScriptVersion",
+            "    Author : Mikhail Deynekin <Mikhail@Deynekin.com>",
+            "    Site   : https://Deynekin.com",
+            "    GitHub : https://github.com/paulmann/Print-Spooler-Queue-Cleanup",
+            $bar,
+            ''
+        )
+        $lines | ForEach-Object { Write-Host $_ -ForegroundColor Cyan }
+    }
+
+    # Function Version: 1.0.0
     function Test-AdministratorRights {
         try {
-            $currentPrincipal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-            return $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-        }
-        catch {
+            if ($IsLinux -or $IsMacOS) { return $false }
+            $principal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+            return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        } catch {
             Write-StatusMessage "Failed to check administrator rights: $($_.Exception.Message)" -Level Error
             return $false
         }
     }
 
+    # Function Version: 1.0.0
     function Test-PowerShellVersion {
-        $currentVersion = $PSVersionTable.PSVersion
-        if ($currentVersion -lt $ScriptConfig.RequiredPSVersion) {
-            Write-StatusMessage "PowerShell version $currentVersion is below required $($ScriptConfig.RequiredPSVersion)" -Level Error
+        $current = $PSVersionTable.PSVersion
+        if ($current -lt $script:Config.RequiredPSVersion) {
+            Write-StatusMessage "PowerShell $current is below required $($script:Config.RequiredPSVersion)" -Level Error
             return $false
         }
         return $true
     }
 
-    # --- Cross-Version Safe Core Functions ---
-    function Invoke-ScriptBlockOnTarget {
+    # Function Version: 1.0.0
+    function Test-IsLocalTarget {
+        param([Parameter(Mandatory)][string]$Computer)
+        return ($script:LocalNames -contains $Computer)
+    }
+
+    # Function Version: 1.1.0
+    # Cross-version safe: prefer Invoke-Command (works on PS 5.1 and 7+).
+    # Get-Service/Stop-Service -ComputerName were removed in PowerShell 7,
+    # so we route all remote operations through Invoke-Command.
+    function Invoke-OnTarget {
+        [CmdletBinding()]
         param(
-            [string]$Computer,
-            [scriptblock]$ScriptBlock,
+            [Parameter(Mandatory)][string]$Computer,
+            [Parameter(Mandatory)][scriptblock]$ScriptBlock,
             [object[]]$ArgumentList = @()
         )
-        if ($Computer -eq 'localhost' -or $Computer -eq '.' -or $Computer -eq $env:COMPUTERNAME) {
-            if ($ArgumentList.Count -eq 0) {
-                return & $ScriptBlock
-            } else {
+        if (Test-IsLocalTarget -Computer $Computer) {
+            if ($ArgumentList.Count -gt 0) {
                 return & $ScriptBlock @ArgumentList
             }
-        } else {
-            $icmParams = @{
-                ComputerName = $Computer
-                ScriptBlock  = $ScriptBlock
-                ErrorAction  = 'Stop'
-            }
-            if ($ArgumentList.Count -gt 0) { $icmParams['ArgumentList'] = $ArgumentList }
-            return Invoke-Command @icmParams
+            return & $ScriptBlock
         }
+        $params = @{
+            ComputerName = $Computer
+            ScriptBlock  = $ScriptBlock
+            ErrorAction  = 'Stop'
+        }
+        if ($ArgumentList.Count -gt 0) { $params['ArgumentList'] = $ArgumentList }
+        return Invoke-Command @params
     }
 
+    # Function Version: 1.0.0
     function Get-SpoolerDirectoryPath {
-        param([string]$TargetComputer)
-        $ScriptBlock = {
-            $SpoolPath = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Print\Printers" -Name "DefaultSpoolDirectory" -ErrorAction SilentlyContinue)."DefaultSpoolDirectory"
-            if (-not $SpoolPath) { "$env:SystemRoot\System32\spool\PRINTERS" } else { $SpoolPath }
+        param([Parameter(Mandatory)][string]$Computer)
+        $sb = {
+            $regKey = 'HKLM:\SYSTEM\CurrentControlSet\Control\Print\Printers'
+            $custom = (Get-ItemProperty -Path $regKey -Name 'DefaultSpoolDirectory' -ErrorAction SilentlyContinue).DefaultSpoolDirectory
+            if ([string]::IsNullOrWhiteSpace($custom)) { "$env:SystemRoot\System32\spool\PRINTERS" } else { $custom }
         }
-        return Invoke-ScriptBlockOnTarget -Computer $TargetComputer -ScriptBlock $ScriptBlock
+        return Invoke-OnTarget -Computer $Computer -ScriptBlock $sb
     }
 
+    # Function Version: 1.0.0
     function Get-SpoolFileStatistics {
-        param([string]$TargetComputer, [string]$SpoolDir)
-        $ScriptBlock = {
+        param(
+            [Parameter(Mandatory)][string]$Computer,
+            [Parameter(Mandatory)][string]$SpoolDir
+        )
+        $sb = {
             param($Path)
-            if (-not (Test-Path $Path)) { return @{ Files=0; SHDFiles=0; SPLFiles=0; TotalSize=0 } }
-            $allFiles = Get-ChildItem -Path $Path -File -ErrorAction SilentlyContinue
-            $shd = ($allFiles | Where-Object Extension -eq '.SHD').Count
-            $spl = ($allFiles | Where-Object Extension -eq '.SPL').Count
-            $size = ($allFiles | Measure-Object -Property Length -Sum).Sum
-            @{ Files=$allFiles.Count; SHDFiles=$shd; SPLFiles=$spl; TotalSize=$size }
+            if (-not (Test-Path -LiteralPath $Path)) {
+                return [pscustomobject]@{ Files = 0; SHDFiles = 0; SPLFiles = 0; TotalSize = 0L; Path = $Path; Exists = $false }
+            }
+            $all = @(Get-ChildItem -LiteralPath $Path -File -Force -ErrorAction SilentlyContinue)
+            $shd = @($all | Where-Object { $_.Extension -ieq '.SHD' }).Count
+            $spl = @($all | Where-Object { $_.Extension -ieq '.SPL' }).Count
+            $sum = ($all | Measure-Object -Property Length -Sum).Sum
+            if (-not $sum) { $sum = 0L }
+            [pscustomobject]@{ Files = $all.Count; SHDFiles = $shd; SPLFiles = $spl; TotalSize = [int64]$sum; Path = $Path; Exists = $true }
         }
-        return Invoke-ScriptBlockOnTarget -Computer $TargetComputer -ScriptBlock $ScriptBlock -ArgumentList $SpoolDir
+        return Invoke-OnTarget -Computer $Computer -ScriptBlock $sb -ArgumentList @($SpoolDir)
     }
 
+    # Function Version: 1.1.0
+    # Stops Spooler via Invoke-Command on remote, native cmdlets locally.
     function Stop-SpoolerServiceOnTarget {
-        param([string]$TargetComputer)
-        Write-StatusMessage "Stopping Print Spooler service on '$TargetComputer'..." -Level Progress
-        try {
-            $service = Get-Service -Name $ScriptConfig.ServiceName -ComputerName $TargetComputer -ErrorAction Stop
-            if ($service.Status -eq 'Running') {
-                Stop-Service -Name $ScriptConfig.ServiceName -ComputerName $TargetComputer -Force -ErrorAction Stop
-                # Wait with progress bar
-                $timeout = 30
-                for ($i = 1; $i -le $timeout; $i++) {
-                    Start-Sleep -Seconds 1
-                    $service = Get-Service -Name $ScriptConfig.ServiceName -ComputerName $TargetComputer
-                    if ($service.Status -eq 'Stopped') { break }
-                    Write-Progress -Activity "Stopping Print Spooler on '$TargetComputer'" -Status "Waiting for service to stop..." -PercentComplete (($i / $timeout) * 100)
-                }
-                Write-Progress -Activity "Stopping Print Spooler" -Completed
-                if ($service.Status -eq 'Stopped') {
-                    Write-StatusMessage "Print Spooler service stopped successfully on '$TargetComputer'" -Level Success
-                    return $true
-                } else {
-                    throw "Service did not stop within timeout period"
-                }
-            } else {
-                Write-StatusMessage "Print Spooler service was already stopped on '$TargetComputer'" -Level Info
-                return $true
+        param(
+            [Parameter(Mandatory)][string]$Computer,
+            [int]$TimeoutSeconds = 30
+        )
+        Write-StatusMessage "Stopping Print Spooler service on '$Computer'..." -Level Progress
+        $serviceName = $script:Config.ServiceName
+        $sb = {
+            param($name, $timeout)
+            $svc = Get-Service -Name $name -ErrorAction Stop
+            if ($svc.Status -eq 'Stopped') { return @{ Result = 'AlreadyStopped' } }
+            Stop-Service -Name $name -Force -ErrorAction Stop
+            try {
+                $svc.WaitForStatus('Stopped', [TimeSpan]::FromSeconds($timeout))
+            } catch {
+                return @{ Result = 'Timeout'; Error = $_.Exception.Message }
             }
+            return @{ Result = 'Stopped' }
         }
-        catch {
-            Write-StatusMessage "Failed to stop Print Spooler service on '$TargetComputer': $($_.Exception.Message)" -Level Error
-            $Global:Statistics.ErrorsEncountered++
+        try {
+            $r = Invoke-OnTarget -Computer $Computer -ScriptBlock $sb -ArgumentList @($serviceName, $TimeoutSeconds)
+            switch ($r.Result) {
+                'AlreadyStopped' { Write-StatusMessage "Print Spooler was already stopped on '$Computer'" -Level Info; return $true }
+                'Stopped'        { Write-StatusMessage "Print Spooler stopped successfully on '$Computer'"  -Level Success; return $true }
+                'Timeout'        { throw "Service did not reach 'Stopped' within ${TimeoutSeconds}s on '$Computer': $($r.Error)" }
+                default          { throw "Unexpected stop result on '$Computer': $($r.Result)" }
+            }
+        } catch {
+            Write-StatusMessage "Failed to stop Print Spooler on '$Computer': $($_.Exception.Message)" -Level Error
+            $script:Stats.ErrorsEncountered++
             return $false
         }
     }
 
+    # Function Version: 1.1.0
+    # Targets only *.SHD / *.SPL spool files (non-destructive: leaves any
+    # other content in the directory untouched). Honors -WhatIf via the caller.
     function Clear-SpoolFilesOnTarget {
-        param([string]$TargetComputer, [string]$SpoolDir)
-        Write-StatusMessage "Analyzing spool directory on '$TargetComputer'..." -Level Progress
-        $preStats = Get-SpoolFileStatistics -TargetComputer $TargetComputer -SpoolDir $SpoolDir
-        if ($preStats.Files -eq 0) {
-            Write-StatusMessage "No files found in spool directory on '$TargetComputer' - queue already clean" -Level Info
+        param(
+            [Parameter(Mandatory)][string]$Computer,
+            [Parameter(Mandatory)][string]$SpoolDir
+        )
+        Write-StatusMessage "Analyzing spool directory '$SpoolDir' on '$Computer'..." -Level Progress
+        $pre = Get-SpoolFileStatistics -Computer $Computer -SpoolDir $SpoolDir
+        if (-not $pre.Exists) {
+            Write-StatusMessage "Spool directory '$SpoolDir' not found on '$Computer'" -Level Warning
+            return $false
+        }
+        if ($pre.Files -eq 0) {
+            Write-StatusMessage "Spool directory is already empty on '$Computer'" -Level Info
             return $true
         }
-        Write-StatusMessage "Found $($preStats.Files) files ($($preStats.SHDFiles) .SHD, $($preStats.SPLFiles) .SPL) on '$TargetComputer'" -Level Info
+        Write-StatusMessage ("Found {0} files ({1} .SHD, {2} .SPL, {3} bytes) on '{4}'" -f $pre.Files, $pre.SHDFiles, $pre.SPLFiles, $pre.TotalSize, $Computer) -Level Info
 
-        $ScriptBlock = {
+        $sb = {
             param($Path)
-            $files = @(Get-ChildItem -Path $ScriptConfig.SpoolDirectory -File -ErrorAction SilentlyContinue)
-            $results = @()
-            foreach ($file in $files) {
+            $items = @(Get-ChildItem -LiteralPath $Path -File -Force -ErrorAction SilentlyContinue |
+                       Where-Object { $_.Extension -ieq '.SHD' -or $_.Extension -ieq '.SPL' })
+            $out = New-Object System.Collections.Generic.List[object]
+            foreach ($f in $items) {
                 try {
-                    Remove-Item -Path $file.FullName -Force -ErrorAction Stop
-                    $results += @{ Success = $true; File = $file.Name }
-                }
-                catch {
-                    $results += @{ Success = $false; File = $file.Name; Error = $_.Exception.Message }
+                    Remove-Item -LiteralPath $f.FullName -Force -ErrorAction Stop
+                    $out.Add([pscustomobject]@{ Success = $true; File = $f.Name; Error = $null }) | Out-Null
+                } catch {
+                    $out.Add([pscustomobject]@{ Success = $false; File = $f.Name; Error = $_.Exception.Message }) | Out-Null
                 }
             }
-            return $results
+            return ,$out.ToArray()
         }
 
-        Write-StatusMessage "Clearing spool files on '$TargetComputer'..." -Level Progress
-        $results = Invoke-ScriptBlockOnTarget -Computer $TargetComputer -ScriptBlock $ScriptBlock -ArgumentList $SpoolDir
-        $successCount = ($results | Where-Object Success -eq $true).Count
-        $errorCount = ($results | Where-Object Success -eq $false).Count
-
-        if ($errorCount -gt 0) {
-            foreach ($result in ($results | Where-Object Success -eq $false)) {
-                Write-StatusMessage "Failed to remove file '$($result.File)': $($result.Error)" -Level Warning
+        Write-StatusMessage "Clearing spool files on '$Computer'..." -Level Progress
+        $results = @(Invoke-OnTarget -Computer $Computer -ScriptBlock $sb -ArgumentList @($SpoolDir))
+        $ok   = @($results | Where-Object { $_.Success }).Count
+        $bad  = @($results | Where-Object { -not $_.Success })
+        if ($bad.Count -gt 0) {
+            foreach ($b in $bad) {
+                Write-StatusMessage "Failed to remove '$($b.File)': $($b.Error)" -Level Warning
             }
-            $Global:Statistics.ErrorsEncountered += $errorCount
+            $script:Stats.ErrorsEncountered += $bad.Count
         }
-
-        $Global:Statistics.FilesProcessed += $successCount
-        $Global:Statistics.JobsCleared = [Math]::Max($preStats.SHDFiles, $preStats.SPLFiles)
-        Write-StatusMessage "Successfully processed $successCount files on '$TargetComputer'" -Level Success
-        return $true
+        $script:Stats.FilesProcessed += $ok
+        $script:Stats.JobsCleared    += [Math]::Max($pre.SHDFiles, $pre.SPLFiles)
+        Write-StatusMessage ("Removed {0} of {1} spool files on '{2}'" -f $ok, $results.Count, $Computer) -Level Success
+        return ($bad.Count -eq 0)
     }
 
+    # Function Version: 1.1.0
     function Start-SpoolerServiceOnTarget {
-        param([string]$TargetComputer)
-        Write-StatusMessage "Starting Print Spooler service on '$TargetComputer'..." -Level Progress
-        try {
-            Start-Service -Name $ScriptConfig.ServiceName -ComputerName $TargetComputer -ErrorAction Stop
-            $timeout = 30
-            for ($i = 1; $i -le $timeout; $i++) {
-                Start-Sleep -Seconds 1
-                $service = Get-Service -Name $ScriptConfig.ServiceName -ComputerName $TargetComputer
-                if ($service.Status -eq 'Running') { break }
-                Write-Progress -Activity "Starting Print Spooler on '$TargetComputer'" -Status "Waiting for service to start..." -PercentComplete (($i / $timeout) * 100)
+        param(
+            [Parameter(Mandatory)][string]$Computer,
+            [int]$TimeoutSeconds = 30
+        )
+        Write-StatusMessage "Starting Print Spooler service on '$Computer'..." -Level Progress
+        $serviceName = $script:Config.ServiceName
+        $sb = {
+            param($name, $timeout)
+            $svc = Get-Service -Name $name -ErrorAction Stop
+            if ($svc.Status -ne 'Running') {
+                Start-Service -Name $name -ErrorAction Stop
             }
-            Write-Progress -Activity "Starting Print Spooler" -Completed
-            if ($service.Status -eq 'Running') {
-                Write-StatusMessage "Print Spooler service started successfully on '$TargetComputer'" -Level Success
-                return $true
-            } else {
-                throw "Service did not start within timeout period"
+            try {
+                $svc.WaitForStatus('Running', [TimeSpan]::FromSeconds($timeout))
+            } catch {
+                return @{ Result = 'Timeout'; Error = $_.Exception.Message }
             }
+            return @{ Result = 'Running' }
         }
-        catch {
-            Write-StatusMessage "Failed to start Print Spooler service on '$TargetComputer': $($_.Exception.Message)" -Level Error
-            $Global:Statistics.ErrorsEncountered++
+        try {
+            $r = Invoke-OnTarget -Computer $Computer -ScriptBlock $sb -ArgumentList @($serviceName, $TimeoutSeconds)
+            switch ($r.Result) {
+                'Running' { Write-StatusMessage "Print Spooler is running on '$Computer'" -Level Success; return $true }
+                'Timeout' { throw "Service did not reach 'Running' within ${TimeoutSeconds}s on '$Computer': $($r.Error)" }
+                default   { throw "Unexpected start result on '$Computer': $($r.Result)" }
+            }
+        } catch {
+            Write-StatusMessage "Failed to start Print Spooler on '$Computer': $($_.Exception.Message)" -Level Error
+            $script:Stats.ErrorsEncountered++
             return $false
         }
     }
 
+    # Function Version: 1.0.0
     function Show-ExecutionStatistics {
-        $Global:Statistics.EndTime = Get-Date
-        $executionTime = $Global:Statistics.EndTime - $Global:Statistics.StartTime
-        Write-Host "`n" -NoNewline
-        Write-Host ("═" * 80) -ForegroundColor Cyan
-        Write-Host "    EXECUTION STATISTICS & SUMMARY" -ForegroundColor Cyan
-        Write-Host ("═" * 80) -ForegroundColor Cyan
-        $statsDisplay = @(
-            @{ Label = "Execution Time"; Value = "{0:mm\:ss\.fff}" -f $executionTime; Color = "White" },
-            @{ Label = "Print Jobs Cleared"; Value = $Global:Statistics.JobsCleared; Color = if ($Global:Statistics.JobsCleared -gt 0) { "Green" } else { "Yellow" } },
-            @{ Label = "Files Processed"; Value = $Global:Statistics.FilesProcessed; Color = if ($Global:Statistics.FilesProcessed -gt 0) { "Green" } else { "Yellow" } },
-            @{ Label = "Errors Encountered"; Value = $Global:Statistics.ErrorsEncountered; Color = if ($Global:Statistics.ErrorsEncountered -eq 0) { "Green" } else { "Red" } },
-            @{ Label = "Operation Result"; Value = $Global:Statistics.OperationResult; Color = if ($Global:Statistics.OperationResult -eq "Success") { "Green" } else { "Red" } }
+        $script:Stats.EndTime = Get-Date
+        $duration = $script:Stats.EndTime - $script:Stats.StartTime
+        $bar = ('=' * 78)
+        Write-Host ''
+        Write-Host $bar -ForegroundColor Cyan
+        Write-Host '    EXECUTION SUMMARY' -ForegroundColor Cyan
+        Write-Host $bar -ForegroundColor Cyan
+        $rows = @(
+            @{ L = 'Execution Time';     V = ('{0:hh\:mm\:ss\.fff}' -f $duration); C = 'White' },
+            @{ L = 'Computers Attempted'; V = $script:Stats.ComputersAttempted; C = 'White' },
+            @{ L = 'Computers Succeeded'; V = $script:Stats.ComputersSucceeded; C = if ($script:Stats.ComputersSucceeded -gt 0) { 'Green' } else { 'Yellow' } },
+            @{ L = 'Computers Failed';    V = $script:Stats.ComputersFailed;    C = if ($script:Stats.ComputersFailed -eq 0) { 'Green' } else { 'Red' } },
+            @{ L = 'Print Jobs Cleared'; V = $script:Stats.JobsCleared;        C = if ($script:Stats.JobsCleared -gt 0) { 'Green' } else { 'Yellow' } },
+            @{ L = 'Files Processed';    V = $script:Stats.FilesProcessed;     C = if ($script:Stats.FilesProcessed -gt 0) { 'Green' } else { 'Yellow' } },
+            @{ L = 'Errors Encountered'; V = $script:Stats.ErrorsEncountered;  C = if ($script:Stats.ErrorsEncountered -eq 0) { 'Green' } else { 'Red' } },
+            @{ L = 'Operation Result';   V = $script:Stats.OperationResult;    C = if ($script:Stats.OperationResult -eq 'Success') { 'Green' } else { 'Red' } }
         )
-        foreach ($stat in $statsDisplay) {
-            $padding = " " * (20 - $stat.Label.Length)
-            Write-Host "    $($stat.Label):$padding" -NoNewline -ForegroundColor Gray
-            Write-Host $stat.Value -ForegroundColor $stat.Color
+        foreach ($row in $rows) {
+            $pad = ' ' * [Math]::Max(1, 22 - $row.L.Length)
+            Write-Host ("    {0}:{1}" -f $row.L, $pad) -NoNewline -ForegroundColor Gray
+            Write-Host $row.V -ForegroundColor $row.C
         }
-        Write-Host ("═" * 80) -ForegroundColor Cyan
-
-        if ($Global:Statistics.OperationResult -eq "Success" -and $Global:Statistics.ErrorsEncountered -eq 0) {
-            Write-StatusMessage "Print spooler cleanup completed successfully!" -Level Success
-        } elseif ($Global:Statistics.OperationResult -eq "Success" -and $Global:Statistics.ErrorsEncountered -gt 0) {
-            Write-StatusMessage "Print spooler cleanup completed with $($Global:Statistics.ErrorsEncountered) warnings" -Level Warning
-        } else {
-            Write-StatusMessage "Print spooler cleanup failed - check error messages above" -Level Error
-        }
+        Write-Host $bar -ForegroundColor Cyan
     }
 
-    # --- Initialization ---
+    #endregion Helper functions
+
     Write-HeaderMessage
-    Write-Log "Script '$ScriptName' v$ScriptVersion started on PowerShell $($PSVersionTable.PSVersion)."
+    Write-Log -Message "Script v$script:ScriptVersion started on PowerShell $($PSVersionTable.PSVersion)."
+
     if (-not (Test-PowerShellVersion)) { throw "PowerShell version requirements not met." }
-    if ($ComputerName -contains 'localhost' -or $ComputerName -contains '.' -or $ComputerName -contains $env:COMPUTERNAME) {
-        if (-not (Test-AdministratorRights)) { throw "Administrator privileges required." }
+
+    # When values arrive via the pipeline, $ComputerName here still holds the
+    # parameter's default — a real check for "do we touch the local box?" runs
+    # again per item in the process block. We skip empty strings to be safe on
+    # hosts where $env:COMPUTERNAME is unexpectedly unset.
+    $touchesLocal = $false
+    foreach ($c in $ComputerName) {
+        if ([string]::IsNullOrWhiteSpace($c)) { continue }
+        if (Test-IsLocalTarget -Computer $c) { $touchesLocal = $true; break }
+    }
+    if ($touchesLocal -and -not (Test-AdministratorRights)) {
+        throw "Administrator privileges are required to manage the local Print Spooler service."
     }
 }
 
 process {
     foreach ($Computer in $ComputerName) {
-        Write-StatusMessage "Starting cleanup process on computer: '$Computer'" -Level Info
+        if ([string]::IsNullOrWhiteSpace($Computer)) {
+            Write-StatusMessage "Skipping empty computer name" -Level Warning
+            continue
+        }
+        $script:Stats.ComputersAttempted++
+        Write-StatusMessage "Beginning cleanup on '$Computer'" -Level Info
+        $thisOk = $true
 
         try {
-            $SpoolDir = Get-SpoolerDirectoryPath -TargetComputer $Computer
-            Write-Log "Spool directory on '$Computer': '$SpoolDir'"
+            $spoolDir = Get-SpoolerDirectoryPath -Computer $Computer
+            Write-Log -Message "Spool directory on '$Computer': '$spoolDir'"
 
-            if (-not $Force -and -not $PSCmdlet.ShouldProcess($Computer, "Clear Print Spooler Queue")) {
-                Write-StatusMessage "Operation cancelled by user for '$Computer'" -Level Info
+            $confirmTarget = "Print Spooler queue on '$Computer' (directory: $spoolDir)"
+            $confirmAction = "Stop service, delete *.SHD/*.SPL files, restart service"
+            if (-not $Force -and -not $PSCmdlet.ShouldProcess($confirmTarget, $confirmAction)) {
+                Write-StatusMessage "Skipped '$Computer' (not confirmed)" -Level Info
+                $script:Stats.ComputersFailed++
                 continue
             }
 
-            if (-not (Stop-SpoolerServiceOnTarget -TargetComputer $Computer)) {
-                throw "Failed to stop service on '$Computer'"
+            if (-not (Stop-SpoolerServiceOnTarget -Computer $Computer -TimeoutSeconds $ServiceTimeoutSeconds)) {
+                throw "Could not stop Spooler on '$Computer'."
             }
 
-            Start-Sleep -Seconds $ScriptConfig.WaitTimeSeconds
+            Start-Sleep -Seconds $script:Config.SettleSeconds
 
-            if (-not (Clear-SpoolFilesOnTarget -TargetComputer $Computer -SpoolDir $SpoolDir)) {
-                Write-StatusMessage "File cleanup encountered issues on '$Computer', continuing..." -Level Warning
+            if (-not (Clear-SpoolFilesOnTarget -Computer $Computer -SpoolDir $spoolDir)) {
+                Write-StatusMessage "Spool file cleanup completed with errors on '$Computer'" -Level Warning
+                $thisOk = $false
             }
 
-            if (-not (Start-SpoolerServiceOnTarget -TargetComputer $Computer)) {
-                throw "Failed to restart service on '$Computer'"
+            if (-not (Start-SpoolerServiceOnTarget -Computer $Computer -TimeoutSeconds $ServiceTimeoutSeconds)) {
+                throw "Could not start Spooler on '$Computer'."
             }
 
-            Write-StatusMessage "Cleanup completed successfully on '$Computer'" -Level Success
+            if ($thisOk) {
+                $script:Stats.ComputersSucceeded++
+                Write-StatusMessage "Cleanup completed successfully on '$Computer'" -Level Success
+            } else {
+                $script:Stats.ComputersFailed++
+                Write-StatusMessage "Cleanup completed with warnings on '$Computer'" -Level Warning
+            }
         }
         catch {
-            $ErrorMessage = "Critical error on '$Computer': $($_.Exception.Message)"
-            Write-StatusMessage $ErrorMessage -Level Error
-            $Global:Statistics.ErrorsEncountered++
-            $Global:Statistics.OperationResult = "Failed"
-            # Attempt recovery
+            $script:Stats.ComputersFailed++
+            $script:Stats.ErrorsEncountered++
+            Write-StatusMessage "Critical error on '$Computer': $($_.Exception.Message)" -Level Error
+
+            # Best-effort recovery: try to leave Spooler running so the host
+            # is not left without printing capability.
             try {
-                Write-StatusMessage "Attempting service recovery on '$Computer'..." -Level Warning
-                Start-Service -Name $ScriptConfig.ServiceName -ComputerName $Computer -ErrorAction SilentlyContinue
-            }
-            catch {
-                Write-StatusMessage "Service recovery failed on '$Computer': $($_.Exception.Message)" -Level Error
+                Write-StatusMessage "Attempting Spooler recovery on '$Computer'..." -Level Warning
+                $null = Start-SpoolerServiceOnTarget -Computer $Computer -TimeoutSeconds $ServiceTimeoutSeconds
+            } catch {
+                Write-StatusMessage "Spooler recovery failed on '$Computer': $($_.Exception.Message)" -Level Error
             }
         }
     }
 }
 
 end {
-    # If we processed only one computer, show detailed stats
-    if ($ComputerName.Count -eq 1) {
-        if ($Global:Statistics.ErrorsEncountered -eq 0) { $Global:Statistics.OperationResult = "Success" }
-        Show-ExecutionStatistics
+    if ($script:Stats.ComputersAttempted -gt 0 -and $script:Stats.ComputersFailed -eq 0) {
+        $script:Stats.OperationResult = 'Success'
+    } elseif ($script:Stats.ComputersSucceeded -gt 0) {
+        $script:Stats.OperationResult = 'PartialSuccess'
+    } else {
+        $script:Stats.OperationResult = 'Failed'
     }
-    else {
-        # For multiple computers, just log completion
-        Write-Log "Bulk operation completed for $($ComputerName.Count) computers."
+
+    Show-ExecutionStatistics
+    Write-Log -Message ("Run finished. Result={0}; Succeeded={1}; Failed={2}; Errors={3}." -f `
+        $script:Stats.OperationResult, $script:Stats.ComputersSucceeded, $script:Stats.ComputersFailed, $script:Stats.ErrorsEncountered)
+
+    # Map result to a meaningful exit code without using `exit` (which would
+    # nuke the host when the script is dot-sourced). $LASTEXITCODE-style hosts
+    # can read this via $? / the process exit when invoked by powershell.exe -File.
+    switch ($script:Stats.OperationResult) {
+        'Success'        { $global:LASTEXITCODE = 0 }
+        'PartialSuccess' { $global:LASTEXITCODE = 2 }
+        default          { $global:LASTEXITCODE = 1 }
     }
-    $exitCode = if ($Global:Statistics.OperationResult -eq "Success") { 0 } else { 1 }
-    exit $exitCode
 }
