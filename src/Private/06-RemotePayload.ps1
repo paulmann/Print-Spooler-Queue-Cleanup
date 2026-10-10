@@ -19,7 +19,13 @@
 # ============================================================================
 
 $Script:RemotePayloadTemplate = @'
-{
+
+    # The dispatcher invokes this block as `& $Payload $Options`, so the options
+    # hashtable arrives as the FIRST argument. Without the declaration below the value
+    # lands in $args and every $Options read fails - and the block must NOT be wrapped
+    # in an extra pair of braces, or invoking it merely returns the inner scriptblock
+    # and the cleanup never runs at all.
+    param($Options)
     # ---- payload scope ------------------------------------------------------
     $ErrorActionPreference = 'Continue'
     Set-StrictMode -Version 2.0
@@ -991,5 +997,4 @@ $Script:RemotePayloadTemplate = @'
     }
 
     return Finish-Result $final
-}
 '@
