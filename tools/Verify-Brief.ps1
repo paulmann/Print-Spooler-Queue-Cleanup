@@ -204,17 +204,19 @@ $ver = Clear-PrintSpoolerQueue -ShowVersion -NoColor -Quiet -PassThru
 Check '-ShowVersion -PassThru works' ($ver.Version -eq $Script:ScriptVersion)
 if ($isWindowsHost -and (Test-RunningAsAdministrator)) {
     $diag = @(Get-PrintSpoolerDiagnostic)
-    # Count the EVIDENCE AREAS in the result, not the number of result objects.
-    # Get-PrintSpoolerDiagnostic returns one summary per target - a single local
-    # target is therefore always 1 - so counting the collection asked the wrong
-    # question and reported "1 areas" no matter how much evidence was collected.
-    # The areas are the keys of the diagnostics record: OS, services, spooler
-    # processes, spool directory, printers, drivers, ports, registry, event log.
+    # The areas live on each RESULT of the summary - Write-DiagnosticReport walks
+    # $Summary.Results and reads .Diagnostics - not on the summary itself, which
+    # is why reading the summary's own members reported nothing while the report
+    # was plainly printing every area.
     $areas = @()
-    foreach ($r in $diag) {
-        if ($r.Diagnostics) { $areas += @($r.Diagnostics.Keys) }
+    $targetsSeen = 0
+    foreach ($summary in $diag) {
+        foreach ($r in @($summary.Results)) {
+            $targetsSeen++
+            if ($r.Diagnostics) { $areas += @($r.Diagnostics.Keys) }
+        }
     }
-    Check 'Get-PrintSpoolerDiagnostic returns evidence areas' ($areas.Count -ge 5) "$($areas.Count) areas: $($areas -join ', ')"
+    Check 'Get-PrintSpoolerDiagnostic returns evidence areas' ($areas.Count -ge 5) "$($areas.Count) areas over $targetsSeen target(s): $($areas -join ', ')"
 }
 elseif ($isWindowsHost) {
     # Collecting diagnostics touches services and registry keys that need elevation,
