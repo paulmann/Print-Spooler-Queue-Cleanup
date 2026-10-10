@@ -1,0 +1,121 @@
+name: Bug report
+description: Something in Print Spooler Queue Cleanup did not behave as documented.
+title: "[Bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this.
+
+        **Before you file:** please run the two commands below and include their output. They answer
+        most of the questions a maintainer would otherwise have to ask, and they take about five
+        seconds.
+
+        ```powershell
+        .\Clear-PrintSpoolerQueue.ps1 -ShowVersion
+        .\Clear-PrintSpoolerQueue.ps1 -SelfTest -Quiet -NoColor ; $LASTEXITCODE
+        ```
+
+        A `-SelfTest` exit code of `2` means this copy of the tool is internally inconsistent, which
+        is a much more useful starting point than a description of the symptom.
+
+        > **Security issue?** Do not file it here. Email Mikhail@Deynekin.com — see SECURITY.md.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you ran, what it did, and what you expected instead.
+      placeholder: |
+        Command line:
+        Expected:
+        Actual:
+        Exit code:
+    validations:
+      required: true
+  - type: textarea
+    id: version
+    attributes:
+      label: Version and build
+      description: Output of `.\Clear-PrintSpoolerQueue.ps1 -ShowVersion`
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which entry point?
+      options:
+        - Clear-PrintSpoolerQueue.ps1
+        - Clear-PrintSpoolerQueue.bat
+        - PrintSpoolerCleanup module (Import-Module)
+        - A scheduled task created by Install-SpoolerCleanupTask
+        - A hand-made scheduled task
+        - An RMM / CI invocation
+    validations:
+      required: true
+  - type: dropdown
+    id: shell
+    attributes:
+      label: PowerShell engine
+      options:
+        - PowerShell 7.x (pwsh.exe)
+        - Windows PowerShell 5.1 (powershell.exe)
+        - Both / not sure
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: "e.g. Windows Server 2022 (build 20348), Windows 11 24H2"
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - Local machine only
+        - One remote target
+        - A fleet (multiple remote targets)
+    validations:
+      required: true
+  - type: textarea
+    id: mode
+    attributes:
+      label: Mode and flags
+      description: Which mode, and which selection/safety flags were in play?
+      placeholder: "-Force -Backup -OlderThan 2h -ThrottleLimit 8"
+  - type: textarea
+    id: bundle
+    attributes:
+      label: Diagnostics bundle
+      description: |
+        Please attach the ZIP produced by:
+
+        ```powershell
+        .\Clear-PrintSpoolerQueue.ps1 -Diagnostic -DiagnosticsBundlePath C:\Temp
+        ```
+
+        It contains the environment report, diagnostics, the effective configuration **with secrets
+        redacted**, the recent log buffer and file integrity hashes. It never contains credentials,
+        GitHub tokens or document contents — but review it before uploading if your environment is
+        sensitive.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log excerpt
+      description: From the log path shown in the execution summary. Trim to the failing run.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I ran `-SelfTest` and included the result above.
+          required: true
+        - label: I searched existing issues for this symptom.
+          required: true
+        - label: This is not a security vulnerability (if it is, I will email instead).
+          required: true

@@ -1,0 +1,337 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run per branch: a fast push should cancel the slow run it supersedes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # --------------------------------------------------------------------------
+  # The full nine-stage quality gate (697 checks): build -> parse validation ->
+  # source lint (23) -> batch lint (14) -> unit tests (240) -> module import (36)
+  # -> end-to-end smoke (215) -> release artifact integrity (46) -> brief
+  # compliance (123).
+  #
+  # The Linux leg is NOT decoration. It caught a real defect in the spool-directory
+  # safety guard: [IO.Path]::GetFullPath('C:\PRINTERS') is platform-relative, so on
+  # Linux it returned '<cwd>/C:\PRINTERS' and silently satisfied a depth check that
+  # the operator's actual path should have failed. Platform-dependent behaviour in a
+  # safety guard is exactly what a cross-platform matrix exists to find.
+  # --------------------------------------------------------------------------
+  quality-gate:
+    name: Quality gate (${{ matrix.os }} / ${{ matrix.shell }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            shell: pwsh
+            label: Windows / PowerShell 7
+          - os: ubuntu-latest
+            shell: pwsh
+            label: Linux / PowerShell 7
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Report the PowerShell version
+        shell: ${{ matrix.shell }}
+        run: |
+          $PSVersionTable.PSVersion.ToString()
+          $PSVersionTable.PSEdition
+
+      - name: Parse validation (sources only, pre-build)
+        shell: ${{ matrix.shell }}
+        run: ./tools/Invoke-Validation.ps1
+
+      - name: Build the distributables
+        shell: ${{ matrix.shell }}
+        run: ./tools/Build.ps1 -SkipTests -NoZip
+
+      - name: Full quality gate
+        shell: ${{ matrix.shell }}
+        run: ./tests/Run-Tests.ps1
+
+      - name: Built-in self test of the artifact
+        shell: ${{ matrix.shell }}
+        run: |
+          ./dist/Clear-PrintSpoolerQueue.ps1 -SelfTest -Quiet -NoColor
+          if ($LASTEXITCODE -ne 0) { throw "The artifact failed its own self-test (exit $LASTEXITCODE)." }
+
+      - name: Verify the artifacts are consistent
+        shell: ${{ matrix.shell }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ps  = Get-Content ./dist/Clear-PrintSpoolerQueue.ps1 -Raw
+          $bat = Get-Content ./dist/Clear-PrintSpoolerQueue.bat -Raw
+          $psd = Get-Content ./dist/PrintSpoolerCleanup/PrintSpoolerCleanup.psd1 -Raw
+
+          $ver = [regex]::Match($ps, "\`$Script:ScriptVersion\s+=\s+'([^']+)'").Groups[1].Value
+          if (-not $ver) { throw 'No version stamp in the built script.' }
+          if ($bat -notmatch [regex]::Escape("SCRIPT_VERSION=$ver")) { throw "Launcher version does not match $ver." }
+          if ($psd -notmatch [regex]::Escape("ModuleVersion          = '$ver'")) { throw "Manifest version does not match $ver." }
+
+          # No build-time token may survive in any artifact.
+          foreach ($f in @('dist/Clear-PrintSpoolerQueue.ps1','dist/Clear-PrintSpoolerQueue.bat',
+                           'dist/PrintSpoolerCleanup/PrintSpoolerCleanup.psd1',
+                           'dist/PrintSpoolerCleanup/PrintSpoolerCleanup.psm1')) {
+            $t = Get-Content $f -Raw
+            if ($t -match '@@BUILD_STAMP@@') { throw "Unsubstituted build token in $f." }
+          }
+
+          # The batch launcher must be pure ASCII with CRLF endings.
+          $bytes = [IO.File]::ReadAllBytes((Resolve-Path ./dist/Clear-PrintSpoolerQueue.bat).Path)
+          if (@($bytes | Where-Object { $_ -gt 127 }).Count -gt 0) { throw 'The launcher contains non-ASCII bytes.' }
+
+          Write-Host "Artifacts are consistent at v$ver."
+
+      - name: Upload artifacts
+        if: matrix.os == 'windows-latest' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrintSpoolerCleanup-build
+          path: |
+            dist/Clear-PrintSpoolerQueue.ps1
+            dist/Clear-PrintSpoolerQueue.bat
+            dist/PrintSpoolerCleanup/
+            dist/PrintSpoolerCleanup.config.psd1
+            dist/checksums.txt
+            dist/RELEASE-NOTES.md
+          if-no-files-found: error
+          retention-days: 30
+
+  # --------------------------------------------------------------------------
+  # Windows PowerShell 5.1 is the floor for the product, so it must be verified
+  # on a real 5.1 host rather than inferred from 7.x. The payload is constrained
+  # to 5.1-available cmdlets precisely so this job stays green.
+  # --------------------------------------------------------------------------
+  powershell-51:
+    name: Windows PowerShell 5.1 compatibility
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build with PowerShell 7
+        shell: pwsh
+        run: ./tools/Build.ps1 -SkipTests -NoZip
+
+      - name: Validate the artifact under Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSVersionTable.PSVersion.ToString()
+
+          $tokens = $null; $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path ./dist/Clear-PrintSpoolerQueue.ps1).Path, [ref]$tokens, [ref]$errors)
+          if ($errors -and $errors.Count -gt 0) {
+              $errors | Select-Object -First 5 | ForEach-Object { Write-Host $_.Message }
+              throw "The built script does not parse under Windows PowerShell 5.1."
+          }
+
+          . ./dist/Clear-PrintSpoolerQueue.ps1
+          Write-Host 'Dot-source under 5.1: OK'
+
+          $cmd = Get-Command Clear-PrintSpoolerQueue
+          Write-Host ("Parameters visible under 5.1: {0}" -f $cmd.Parameters.Count)
+          if ($cmd.Parameters.Count -lt 60) { throw 'Parameter surface is incomplete under 5.1.' }
+
+          $help = Get-SpoolerCleanupHelp -Section ExitCodes
+          if ($help.Length -lt 500) { throw 'Help did not render under 5.1.' }
+          Write-Host 'Help rendering under 5.1: OK'
+
+          ./dist/Clear-PrintSpoolerQueue.ps1 -SelfTest -Quiet -NoColor
+          Write-Host ("Self-test under 5.1 exit code: {0}" -f $LASTEXITCODE)
+
+      # ------------------------------------------------------------------
+      # The MODULE form is validated separately, and this is not redundant.
+      #
+      # Defect 21 in the v4 audit - `$selfTest` (a local) colliding with the
+      # `[switch]$SelfTest` parameter, because PowerShell variables are
+      # case-insensitive - broke `-PassThru` ONLY when the tool was loaded with
+      # Import-Module. Dot-sourcing, the parser, four test suites and 400+ checks
+      # were all green while every module user was broken. Module scope,
+      # Export-ModuleMember and private-helper isolation are a genuinely separate
+      # code path, so each shipping form gets its own gate.
+      # ------------------------------------------------------------------
+      - name: Validate the module form under Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          # Keep logging out of the artifact tree (see Build.ps1 for why this
+          # matters: Resolve-LogTarget falls back to the script's own directory).
+          $env:PSQ_LOG_PATH = Join-Path $env:TEMP ("psq-ci51-{0}.log" -f [Guid]::NewGuid().ToString('N'))
+
+          $manifest = Test-ModuleManifest -Path ./dist/PrintSpoolerCleanup/PrintSpoolerCleanup.psd1
+          Write-Host ("Manifest under 5.1: v{0}" -f $manifest.Version)
+
+          Import-Module ./dist/PrintSpoolerCleanup/PrintSpoolerCleanup.psd1 -Force
+          $cmds = @(Get-Command -Module PrintSpoolerCleanup)
+          Write-Host ("Commands exported under 5.1: {0}" -f $cmds.Count)
+          if ($cmds.Count -ne 14) { throw "Expected 14 exported commands under 5.1, got $($cmds.Count)." }
+
+          # THE regression test for defect 21. Under 5.1 the same collision throws
+          # the identical SwitchParameter conversion error, so this line is the
+          # guard that keeps the defect from ever shipping again.
+          $st = Clear-PrintSpoolerQueue -SelfTest -NoColor -Quiet -PassThru
+          if ($null -eq $st) { throw '-SelfTest -PassThru returned nothing under 5.1 (defect 21 regression).' }
+          Write-Host ("Self-test via the module under 5.1: {0} ({1}/{2})" -f `
+              $st.Overall, ($st.TotalChecks - $st.FailedChecks), $st.TotalChecks)
+          if ($st.Overall -ne 'Passed') { throw "Self-test reported $($st.Overall) under 5.1." }
+
+          $ver = Clear-PrintSpoolerQueue -ShowVersion -NoColor -Quiet -PassThru
+          if ($ver.Version -ne '4.0.0') { throw "Version mismatch under 5.1: $($ver.Version)" }
+
+          $help = Get-SpoolerCleanupHelp -Section Parameters
+          if ($help.Length -lt 5000) { throw 'Metadata-driven help did not render under 5.1.' }
+          Write-Host ("Help via the module under 5.1: {0} chars" -f $help.Length)
+
+          Remove-Module PrintSpoolerCleanup -Force
+          if (Get-Command Clear-PrintSpoolerQueue -ErrorAction SilentlyContinue) {
+              throw 'Commands survived Remove-Module - the export surface is leaking.'
+          }
+          Write-Host 'Module form under 5.1: OK'
+
+      - name: Confirm the payload uses only 5.1-available cmdlets
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          . ./dist/Clear-PrintSpoolerQueue.ps1
+          $null = Resolve-PayloadScriptBlock -Force
+          $text = $Script:RuntimeState.PayloadText
+
+          # PowerShell 7-only constructs that would break a 5.1 remote target.
+          $forbidden = @('-Parallel', 'ForEach-Object -ThrottleLimit', '??=', '?.', '-AsHashtable',
+                         'Get-Error', 'Join-Path -AdditionalChildPath', '[System.Management.Automation.PSReference]')
+          $found = @($forbidden | Where-Object { $text.Contains($_) })
+          if ($found.Count -gt 0) { throw "The payload uses PS7-only constructs: $($found -join ', ')" }
+          Write-Host 'Payload is 5.1-compatible.'
+
+  # --------------------------------------------------------------------------
+  # Static analysis. Informational rather than blocking, because PSScriptAnalyzer's
+  # default rule set flags style choices this project makes deliberately (for
+  # example Write-Host in the rendering layer, which is that layer's whole job).
+  # --------------------------------------------------------------------------
+  static-analysis:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force
+
+      - name: Build
+        shell: pwsh
+        run: ./tools/Build.ps1 -SkipTests -NoZip
+
+      - name: Analyse the sources
+        shell: pwsh
+        run: |
+          $settings = @{
+              # Rules this project deliberately does not follow, with the reason
+              # recorded here rather than in a suppression attribute scattered
+              # through the code.
+              ExcludeRules = @(
+                  # The rendering layer's entire purpose is host output; the lint
+                  # suite already asserts that value-returning helpers stay off it.
+                  'PSAvoidUsingWriteHost'
+                  # Write-Output is used deliberately for the machine-readable
+                  # JSON contract, where the caller must be able to capture it.
+                  'PSUseToExportFieldsInManifest'
+                  # Aliases are declared explicitly for operator convenience.
+                  'PSAvoidUsingCmdletAliases'
+                  # Empty catch blocks are permitted only with a rationale comment,
+                  # which is enforced by the project's own source lint.
+                  'PSAvoidUsingEmptyCatchBlock'
+              )
+              Severity = @('Error', 'Warning')
+          }
+          $results = Invoke-ScriptAnalyzer -Path ./src -Recurse -Settings $settings
+          $errors = @($results | Where-Object Severity -eq 'Error')
+          $results | Format-Table Severity, RuleName, Line, ScriptName -AutoSize | Out-String -Width 200 | Write-Host
+          Write-Host ("{0} finding(s), {1} at Error severity." -f @($results).Count, $errors.Count)
+          if ($errors.Count -gt 0) { exit 1 }
+
+  # --------------------------------------------------------------------------
+  # Release publishing. Manual only: a published release is how every client
+  # discovers updates, so it must never be a side effect of a merge.
+  # --------------------------------------------------------------------------
+  release:
+    name: Publish release
+    runs-on: windows-latest
+    if: github.event_name == 'workflow_dispatch'
+    needs: [quality-gate, powershell-51]
+    permissions:
+      contents: write
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build, test and package
+        shell: pwsh
+        run: |
+          # Build.ps1 alone is sufficient and correct: it assembles both
+          # distributables, runs the full nine-stage gate (including stage 8,
+          # which validates the ZIP it is about to publish), packages the
+          # archive and writes checksums.txt. Calling Run-Tests.ps1 first made
+          # the job build and gate TWICE, which only wasted half the timeout.
+          ./tools/Build.ps1
+          Get-ChildItem ./dist -Recurse -File | Select-Object FullName, Length | Format-Table -AutoSize
+
+      - name: Read the version from the build
+        id: ver
+        shell: pwsh
+        run: |
+          $raw = Get-Content ./src/Shared/00-Constants.ps1 -Raw
+          $ver = [regex]::Match($raw, "\`$Script:ScriptVersion\s+=\s+'([^']+)'").Groups[1].Value
+          if (-not $ver) { throw 'Could not read the version.' }
+          "version=$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Releasing v$ver"
+
+      - name: Create the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ver = '${{ steps.ver.outputs.version }}'
+          $tag = "v$ver"
+
+          # checksums.txt is what clients verify an update against. A release
+          # published without it will be REFUSED by every client that tries to
+          # install it - so it is uploaded like any other artifact, not skipped.
+          $files = @(Get-ChildItem ./dist -File | ForEach-Object { $_.FullName })
+          $files += @(Get-ChildItem ./dist/PrintSpoolerCleanup -File | ForEach-Object { $_.FullName })
+
+          $notes = if (Test-Path ./dist/RELEASE-NOTES.md) { './dist/RELEASE-NOTES.md' } else { $null }
+
+          # NOT `$args`: that is a PowerShell AUTOMATIC variable, and assigning to
+          # it is the collision class this project documents as trap 4 - it works
+          # only until the host repopulates it, and then fails somewhere that
+          # looks unrelated. Splatting needs an ordinary, explicitly named array.
+          $ghArgs = @('release', 'create', $tag, '--title', "v$ver", '--verify-tag')
+          if ($notes) { $ghArgs += @('--notes-file', $notes) } else { $ghArgs += @('--generate-notes') }
+          $ghArgs += @('--latest')
+          $ghArgs += $files
+
+          gh @ghArgs

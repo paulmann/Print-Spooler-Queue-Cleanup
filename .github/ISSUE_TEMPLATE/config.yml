@@ -1,0 +1,16 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: mailto:Mikhail@Deynekin.com
+    about: Please report security issues by email, not as a public issue. See SECURITY.md.
+  - name: Documentation (Wiki)
+    url: https://github.com/paulmann/Print-Spooler-Queue-Cleanup/wiki
+    about: The wiki covers installation, every switch, exit codes, remote execution, scheduling, updates, the safety model and a troubleshooting matrix.
+  - name: Built-in reference
+    url: https://github.com/paulmann/Print-Spooler-Queue-Cleanup/wiki/CLI-Reference
+    # Single-quoted on purpose. In a DOUBLE-quoted YAML scalar the backslash is an
+    # escape character, so ".\Clear-..." is a parse error ("unknown escape
+    # character 'C'") and GitHub then renders "There was an error loading this
+    # form" instead of the contact links - a silent, user-visible failure with no
+    # build step to catch it. Single quotes take backslashes literally.
+    about: 'Run .\Clear-PrintSpoolerQueue.ps1 -Help for the complete reference, generated from the live parameter metadata.'

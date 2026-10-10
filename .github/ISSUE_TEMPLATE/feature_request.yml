@@ -1,0 +1,71 @@
+name: Feature request
+description: Suggest a capability for Print Spooler Queue Cleanup.
+title: "[Feature] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please describe the operational problem, not the mechanism you have in mind — the problem is
+        what generalises.
+
+        **Likely to be declined** (see CONTRIBUTING.md for the reasoning):
+        - A second implementation of the delete step ("fast batch mode", "lightweight local path").
+          There is deliberately one destructive code path, executed identically local and remote.
+        - Weakening or bypassing a safety guard without an equally strong replacement.
+        - Recursive deletion of the spool directory.
+        - Wildcards in `Cleanup.IncludeExtensions`.
+        - A new external module dependency — the product's core promise is that it runs on a clean
+          machine with nothing installed.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What operational problem does this solve?
+      description: What are you trying to do, and what happens today instead?
+      placeholder: |
+        On a site with 400 print servers I need to ... but today I have to ...
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: How often, and what does it cost today?
+      description: Frequency, time spent, risk. This is what makes a feature prioritizable.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Suggested approach
+      description: Optional — a sketch is enough. The maintainers may propose something different.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Cleanup / selection
+        - Safety guards / backup
+        - Diagnostics / repair
+        - Remote / fleet execution
+        - Logging / reporting
+        - Updates / lifecycle
+        - Scheduling / automation
+        - Batch launcher
+        - Documentation / help
+        - Build / tests / CI
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have considered
+      description: Including workarounds you use today, and why they are not enough.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and the wiki for this capability.
+          required: true
+        - label: I understand the likely-declined list above.
+          required: true
