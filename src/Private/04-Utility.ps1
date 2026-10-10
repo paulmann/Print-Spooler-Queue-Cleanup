@@ -475,54 +475,58 @@ function Test-ParameterCombination {
     $problems = New-Object System.Collections.Generic.List[string]
     if (-not $Bound) { return $problems.ToArray() }
 
-    if ($Bound.Contains('Restore') -and $Bound.Contains('Repair')) {
+    # Snapshot once: the checks below need key existence without the two forms
+    # that are forbidden in this codebase (see the source lint).
+    $boundKeys = @($Bound.Keys)
+
+    if (($boundKeys -contains 'Restore') -and ($boundKeys -contains 'Repair')) {
         $problems.Add('-Restore and -Repair are mutually exclusive.')
     }
-    if ($Bound.Contains('Restore') -and ($Bound.Contains('PrinterName') -or $Bound.Contains('JobId') -or $Bound.Contains('OlderThan'))) {
+    if (($boundKeys -contains 'Restore') -and (($boundKeys -contains 'PrinterName') -or ($boundKeys -contains 'JobId') -or ($boundKeys -contains 'OlderThan'))) {
         $problems.Add('-Restore cannot be combined with selection filters (-PrinterName/-JobId/-OlderThan).')
     }
-    if ($Bound.Contains('Diagnostic') -and $Bound.Contains('Repair')) {
+    if (($boundKeys -contains 'Diagnostic') -and ($boundKeys -contains 'Repair')) {
         $problems.Add('-Diagnostic is read-only and cannot be combined with -Repair.')
     }
-    if ($Bound.Contains('Diagnostic') -and ($Bound.Contains('PrinterName') -or $Bound.Contains('JobId'))) {
+    if (($boundKeys -contains 'Diagnostic') -and (($boundKeys -contains 'PrinterName') -or ($boundKeys -contains 'JobId'))) {
         $problems.Add('-Diagnostic reports everything; remove the selection filters or drop -Diagnostic.')
     }
-    if ($Bound.Contains('BackupPath') -and -not $Bound.Contains('Backup')) {
+    if (($boundKeys -contains 'BackupPath') -and -not ($boundKeys -contains 'Backup')) {
         $problems.Add('-BackupPath requires -Backup.')
     }
-    if ($Bound.Contains('OlderThan') -and $Bound.Contains('NewerThan')) {
+    if (($boundKeys -contains 'OlderThan') -and ($boundKeys -contains 'NewerThan')) {
         $older = ConvertFrom-AnyTimeSpan -Value $Bound['OlderThan']
         $newer = ConvertFrom-AnyTimeSpan -Value $Bound['NewerThan']
         if ($older -le $newer) { $problems.Add('-OlderThan must be greater than -NewerThan, otherwise nothing can ever match.') }
     }
-    if ($Bound.Contains('ThrottleLimit') -and [int]$Bound['ThrottleLimit'] -gt 1 -and -not (Test-PowerShellSevenFeatures)) {
+    if (($boundKeys -contains 'ThrottleLimit') -and [int]$Bound['ThrottleLimit'] -gt 1 -and -not (Test-PowerShellSevenFeatures)) {
         $problems.Add("-ThrottleLimit > 1 needs PowerShell 7 for ForEach-Object -Parallel. Current host: $($PSVersionTable.PSVersion). (A runspace pool is used automatically, so this is advisory.)")
     }
-    if ($Bound.Contains('EventLog') -and -not (Test-RunningOnWindows)) {
+    if (($boundKeys -contains 'EventLog') -and -not (Test-RunningOnWindows)) {
         $problems.Add('-EventLog is only available on Windows.')
     }
-    if ($Bound.Contains('AutoUpdate') -and $Bound.Contains('CheckUpdate')) {
+    if (($boundKeys -contains 'AutoUpdate') -and ($boundKeys -contains 'CheckUpdate')) {
         $problems.Add('-AutoUpdate already implies an update check; remove -CheckUpdate.')
     }
-    if ($Bound.Contains('Update') -and $Bound.Contains('ComputerName')) {
+    if (($boundKeys -contains 'Update') -and ($boundKeys -contains 'ComputerName')) {
         $problems.Add('-Update updates this tool only; it cannot be combined with -ComputerName.')
     }
-    if ($Bound.Contains('SelfElevate') -and $Bound.Contains('NoElevate')) {
+    if (($boundKeys -contains 'SelfElevate') -and ($boundKeys -contains 'NoElevate')) {
         $problems.Add('-SelfElevate and -NoElevate are mutually exclusive.')
     }
-    if ($Bound.Contains('SaveConfig') -and -not $Bound.Contains('ConfigPath')) {
+    if (($boundKeys -contains 'SaveConfig') -and -not ($boundKeys -contains 'ConfigPath')) {
         $problems.Add('-SaveConfig requires -ConfigPath <file> to write to.')
     }
-    if ($Bound.Contains('MachineReadableJson') -and $Bound.Contains('ExportFormat')) {
+    if (($boundKeys -contains 'MachineReadableJson') -and ($boundKeys -contains 'ExportFormat')) {
         $problems.Add('-MachineReadableJson writes JSON to stdout; use -ExportPath instead of -ExportFormat.')
     }
-    if ($Bound.Contains('WatchdogMinutes') -and [int]$Bound['WatchdogMinutes'] -lt 0) {
+    if (($boundKeys -contains 'WatchdogMinutes') -and [int]$Bound['WatchdogMinutes'] -lt 0) {
         $problems.Add('-WatchdogMinutes cannot be negative (0 disables the watchdog).')
     }
-    if ($Bound.Contains('JobId') -and $Bound.Contains('PrinterName')) {
+    if (($boundKeys -contains 'JobId') -and ($boundKeys -contains 'PrinterName')) {
         $problems.Add('-JobId already identifies a job exactly; combining it with -PrinterName is ambiguous. Use one of them.')
     }
-    if ($Bound.Contains('Repair') -and $Bound.Contains('PurgeDriverStore') -and -not $Bound.Contains('Force')) {
+    if (($boundKeys -contains 'Repair') -and ($boundKeys -contains 'PurgeDriverStore') -and -not ($boundKeys -contains 'Force')) {
         $problems.Add('-PurgeDriverStore removes driver packages and therefore requires -Force as an explicit acknowledgement.')
     }
 
@@ -538,7 +542,7 @@ function Test-ParameterCombination {
     # value forwards -PrinterName "". Reject it loudly instead of letting a typo
     # widen the blast radius of a destructive run. Exit code 3 (BadArguments).
     foreach ($name in $Script:BlankValueIsUnsafeParameters) {
-        if (-not $Bound.Contains($name)) { continue }
+        if (-not ($boundKeys -contains $name)) { continue }
         $val = $Bound[$name]
         if ($null -eq $val) {
             $problems.Add((BlankValueMessage -Name $name -Kind 'no value'))

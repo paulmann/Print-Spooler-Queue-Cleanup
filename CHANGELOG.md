@@ -43,6 +43,18 @@ helpers additionally format invariantly, so a trimmed-down host that cannot reso
 produces a stable decimal separator. Durations, file ages and the build's size listing were made
 invariant for the same reason.
 
+**The `-Diagnostic` mode could not run at all.** `Test-ParameterCombination` validated the
+combination of parameters through `$PSBoundParameters.Contains('<name>')`. That object is a
+`PSBoundParametersDictionary`, which offers `ContainsKey` but no single-argument `Contains`, so
+every invocation that reached the check threw
+`Cannot find an overload for "Contains" and the argument count: "1"` and the run aborted before
+producing anything. Because the check needs elevation to get that far, it never surfaced on a
+non-elevated machine — the first run with adequate rights reproduced it immediately. The checks are
+now done against a snapshot of the dictionary's keys, which works for `Hashtable`,
+`OrderedDictionary` and `PSBoundParametersDictionary` alike and avoids both `.Contains(...)` (no
+matching overload) and `.ContainsKey(...)` (absent from `[ordered]@{}` under Windows PowerShell 5.1,
+which the source lint already forbids for that reason).
+
 **Two checks failed for reasons unrelated to the product.** The unit test for an unwritable log
 path used `/proc/1/cannot/write.log`, a Linux path that on Windows is an ordinary writable
 relative path; it now picks a location that is structurally impossible to write on the host that
@@ -60,6 +72,8 @@ an unrelated agent artefact could fail the release gate. Both directories are no
 expected version from the source of truth instead of comparing against a hardcoded literal.
 - `docs/wiki/Updates-and-Versioning.md` states that discovery strategies 2 and 3 are version checks,
 not installers.
+- `tools/Invoke-DocLint.ps1` reports the offending file and line for a Markdown defect, so a failing
+gate no longer leaves the reader to find it.
 
 ## [4.0.0]
 
