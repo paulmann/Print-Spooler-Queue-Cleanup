@@ -1127,8 +1127,15 @@ function Clear-PrintSpoolerQueue {
                 $null = Write-EventLogRecord -Message $msg -EntryType $evtType -EventId $evtId
             }
 
-            $exportFormats = @($ExportFormat)
-            if ($exportFormats.Count -eq 0 -and $config['Execution']['ExportFormat']) { $exportFormats = @($config['Execution']['ExportFormat']) }
+            # Blanks are filtered before use. A blank entry can come from an unset or
+            # empty -ExportFormat value, and it is falsy in PowerShell: forwarded as a
+            # format name it would be parsed as text and silently write a report nobody
+            # asked for - and, before the binder was relaxed, it aborted the whole run.
+            # The configured list gets the same treatment.
+            $exportFormats = @($ExportFormat | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            if ($exportFormats.Count -eq 0) {
+                $exportFormats = @($config['Execution']['ExportFormat'] | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            }
             if ($exportFormats.Count -gt 0) {
                 $exportTarget = $ExportPath
                 if ([string]::IsNullOrWhiteSpace($exportTarget)) { $exportTarget = [string]$config['Execution']['ExportPath'] }

@@ -805,11 +805,18 @@ function Export-RunReport {
     [OutputType([string[]])]
     param(
         [Parameter(Mandatory)][AllowNull()]$Summary,
-        [Parameter(Mandatory)][AllowNull()][AllowEmptyCollection()][string[]]$Format,
+        # Empty ELEMENTS are tolerated on purpose. A format list can arrive with a
+        # blank entry (an unset or empty -ExportFormat value, or a stray separator
+        # in the configured list). Without AllowEmptyString() the binder rejects the
+        # whole call with "Cannot bind argument to parameter 'Format' because it is
+        # an empty string", which aborted the run instead of simply writing nothing
+        # for that entry. Blanks are dropped below.
+        [Parameter(Mandatory)][AllowNull()][AllowEmptyCollection()][AllowEmptyString()][string[]]$Format,
         [AllowNull()][AllowEmptyString()][string]$Path
     )
 
     $written = New-Object System.Collections.Generic.List[string]
+    $Format = @($Format | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     if (-not $Format -or @($Format).Count -eq 0) { return $written.ToArray() }
 
     $stamp = Get-SafeFileNameStamp
@@ -824,6 +831,7 @@ function Export-RunReport {
         if (-not (Test-Path -LiteralPath $Path)) { New-Item -ItemType Directory -Path $Path -Force -ErrorAction Stop | Out-Null }
     }
 
+    $Format = @($Format | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     foreach ($f in @($Format)) {
         $fmt = switch (([string]$f).ToLowerInvariant()) {
             'json' { 'Json' }
