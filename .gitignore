@@ -39,3 +39,6 @@ coverage*.json
 .env
 .env.*
 secrets.*
+
+# ---- RAGRAF index: machine-local derived data, never commit (§8.20) ---------
+.ragraf/
