@@ -19,6 +19,28 @@ function Initialize-RuntimeState {
         [switch]$Reset
     )
 
+    # ---- locale pinning: do this before anything formats a number -----------
+    # Output is stated with a DOT as the decimal separator, in the documentation
+    # ("1.50 KB", "184.32 MB"), in the release notes and in the test suite. Number
+    # formatting follows the process culture, so on a host set to, say, ru-BY the
+    # same code emitted "1,50 KB": the tool contradicted its own documented output
+    # and the tests that assert it failed. Sizes and durations are machine-read
+    # (reports, JSON, dashboards), so the culture is pinned here, once, for every
+    # form that reaches this function: the standalone epilogue, the module header
+    # and a repeat in-process call. A caller that wants its own culture back can
+    # read the previous value from the runtime state's HostCultureBefore.
+    $Script:HostCultureBefore = [Threading.Thread]::CurrentThread.CurrentCulture
+    try {
+        $pinnedCulture = [Globalization.CultureInfo]::GetCultureInfo('en-US')
+        [Threading.Thread]::CurrentThread.CurrentCulture = $pinnedCulture
+        [Threading.Thread]::CurrentThread.CurrentUICulture = $pinnedCulture
+    }
+    catch {
+        # A host with trimmed culture data refuses GetCultureInfo. The tool then
+        # keeps the host's culture and the helpers that promise a stable format
+        # still use InvariantCulture explicitly, so nothing breaks.
+    }
+
     # Test-Path rather than a truthiness test: reading an unset variable throws
     # under Set-StrictMode, and the build epilogue calls this function BEFORE the
     # variable has ever been assigned. A strict-mode host would therefore fail at

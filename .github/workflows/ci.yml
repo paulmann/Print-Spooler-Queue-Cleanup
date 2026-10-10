@@ -195,7 +195,14 @@ jobs:
           if ($st.Overall -ne 'Passed') { throw "Self-test reported $($st.Overall) under 5.1." }
 
           $ver = Clear-PrintSpoolerQueue -ShowVersion -NoColor -Quiet -PassThru
-          if ($ver.Version -ne '4.0.0') { throw "Version mismatch under 5.1: $($ver.Version)" }
+          # The expected version comes from the source of truth rather than a
+          # literal copied into this workflow: a literal means every release has
+          # to edit the workflow as well, and a stale one silently weakens the
+          # check instead of failing it.
+          $stampLine = @(Get-Content ./src/Shared/00-Constants.ps1 | Where-Object { $_ -match 'ScriptVersion' })[0]
+          $expectedVersion = if ($stampLine) { ($stampLine -split "'")[1] } else { '' }
+          if (-not $expectedVersion) { throw 'Could not read the expected version from src/Shared/00-Constants.ps1.' }
+          if ($ver.Version -ne $expectedVersion) { throw "Version mismatch under 5.1: $($ver.Version) vs $expectedVersion" }
 
           $help = Get-SpoolerCleanupHelp -Section Parameters
           if ($help.Length -lt 5000) { throw 'Metadata-driven help did not render under 5.1.' }

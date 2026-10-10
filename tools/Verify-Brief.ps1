@@ -145,7 +145,7 @@ Check 'CONTRIBUTING.md' (Test-Path -LiteralPath (Join-Path $root 'CONTRIBUTING.m
 Check 'CODE_OF_CONDUCT.md' (Test-Path -LiteralPath (Join-Path $root 'CODE_OF_CONDUCT.md'))
 Check 'Issue templates' (@(Get-ChildItem -LiteralPath (Join-Path $root '.github/ISSUE_TEMPLATE') -Filter '*.yml').Count -ge 3)
 Check 'LICENSE present and GPL-3.0' ((Get-Content -LiteralPath (Join-Path $root 'LICENSE') -Raw) -match 'GNU GENERAL PUBLIC LICENSE')
-Check 'Version stamped consistently' ((Get-SpoolerCleanupVersion).Version -eq '4.0.0')
+Check 'Version stamped consistently' ((Get-SpoolerCleanupVersion).Version -eq $Script:ScriptVersion) ((Get-SpoolerCleanupVersion).Version)
 
 Req 'BRIEF 4: "English wiki documentation for GitHub"'
 $wiki = @(Get-ChildItem -LiteralPath (Join-Path $root 'docs/wiki') -Filter '*.md')
@@ -201,10 +201,17 @@ foreach ($c in @($st.Checks | Where-Object Result -eq 'FAIL')) { Write-Host ("  
 $hp = @(Test-PrintSpoolerHealth)
 Check 'Test-PrintSpoolerHealth returns a scored record' ($hp.Count -ge 1 -and $null -ne $hp[0].Health) ("Health={0}" -f $hp[0].Health)
 $ver = Clear-PrintSpoolerQueue -ShowVersion -NoColor -Quiet -PassThru
-Check '-ShowVersion -PassThru works' ($ver.Version -eq '4.0.0')
-if ($isWindowsHost) {
+Check '-ShowVersion -PassThru works' ($ver.Version -eq $Script:ScriptVersion)
+if ($isWindowsHost -and (Test-RunningAsAdministrator)) {
     $diag = @(Get-PrintSpoolerDiagnostic)
     Check 'Get-PrintSpoolerDiagnostic returns evidence areas' ($diag.Count -ge 5) "$($diag.Count) areas"
+}
+elseif ($isWindowsHost) {
+    # Collecting diagnostics touches services and registry keys that need elevation,
+    # and this check runs in a non-interactive process that cannot raise a UAC
+    # prompt. Reporting that as a gap would blame the product for the harness's own
+    # privileges, so the check is explicitly inapplicable here rather than failed.
+    Write-Host '  SKIP  Get-PrintSpoolerDiagnostic evidence areas (administrator rights are required and were not available)' -ForegroundColor Yellow
 }
 else {
     # Off Windows the cmdlet must REFUSE rather than invent evidence. Asserting a

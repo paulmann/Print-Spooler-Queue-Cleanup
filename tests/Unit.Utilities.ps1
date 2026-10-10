@@ -551,8 +551,22 @@ Invoke-TestCase -Name 'An explicit path is used and its directory is created' -B
 }
 
 Invoke-TestCase -Name 'An unwritable explicit path reports the reason and stays writable=false' -Body {
-    $r = Resolve-LogTarget -ExplicitPath '/proc/1/cannot/write.log'
-    if ($r.Writable) { Assert-True $false 'this location should not be writable' }
+    # The location must be one that genuinely CANNOT be written on the host running
+    # the test. /proc is a Linux kernel filesystem, so on Windows the same string is
+    # an ordinary relative path that opens fine - the assertion then failed for a
+    # reason unrelated to the code under test. On Windows the equivalent structural
+    # impossibility is naming a FILE as if it were a directory: no privilege level
+    # makes that path writable.
+    $unwritable = if ($IsWindows) {
+        $parent = Join-Path ([IO.Path]::GetTempPath()) ("psq-not-a-dir-{0}" -f [Guid]::NewGuid().ToString('N'))
+        $null = New-Item -ItemType File -Path $parent -Force
+        Join-Path $parent 'cannot/write.log'
+    }
+    else {
+        '/proc/1/cannot/write.log'
+    }
+    $r = Resolve-LogTarget -ExplicitPath $unwritable
+    if ($r.Writable) { Assert-True $false "this location should not be writable: $unwritable" }
     else { Assert-NotNull $r.Error }
 }
 

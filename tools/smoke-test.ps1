@@ -408,7 +408,7 @@ if ($SkipNetwork) {
 }
 else {
     try {
-        $info = Get-UpdateInfoCore -Owner 'paulmann' -Repo 'Print-Spooler-Queue-Cleanup' -CurrentVersion '4.0.0'
+        $info = Get-UpdateInfoCore -Owner 'paulmann' -Repo 'Print-Spooler-Queue-Cleanup' -CurrentVersion '0.0.1'
         Check 'Discovery returns a result' ($null -ne $info)
         Write-Host ("        source={0} latest={1} errors={2}" -f $info.Source, $info.LatestVersion, ($info.Errors -join ' | ')) -ForegroundColor DarkGray
         Check 'A version was discovered' (-not [string]::IsNullOrWhiteSpace($info.LatestVersion)) "v$($info.LatestVersion) via $($info.Source)"
@@ -435,9 +435,15 @@ $distDir = Join-Path $Root 'dist'
 $psVer = (Get-Content -LiteralPath (Join-Path $distDir 'Clear-PrintSpoolerQueue.ps1') -Raw)
 $batText = (Get-Content -LiteralPath (Join-Path $distDir 'Clear-PrintSpoolerQueue.bat') -Raw)
 $psdText = (Get-Content -LiteralPath (Join-Path $distDir 'PrintSpoolerCleanup/PrintSpoolerCleanup.psd1') -Raw)
-Check '.ps1 carries the version' ($psVer -match "\`$Script:ScriptVersion\s+=\s+'4\.0\.0'")
-Check '.bat carries the same version' ($batText -match 'SCRIPT_VERSION=4\.0\.0')
-Check '.psd1 carries the same version' ($psdText -match "ModuleVersion\s+=\s+'4\.0\.0'")
+$verMatch = [regex]::Match($psVer, "ScriptVersion\s+=\s+'([^']+)'")
+$expectedVer = if ($verMatch.Success) { $verMatch.Groups[1].Value } else { '' }
+$expectedPattern = [regex]::Escape($expectedVer)
+# The expected version is read from the artifact under test. Hardcoding it here
+# meant every release had to edit the test, and a stale literal would have kept
+# passing while the artifacts disagreed with each other.
+Check '.ps1 carries a version stamp' ($expectedVer -ne '') $expectedVer
+Check '.bat carries the same version' ($batText -match ("SCRIPT_VERSION=" + $expectedPattern))
+Check '.psd1 carries the same version' ($psdText -match ("ModuleVersion\s+=\s+'" + $expectedPattern + "'"))
 Check '.ps1 has no @@BUILD_STAMP@@ left' ($psVer -notmatch '@@BUILD_STAMP@@')
 Check '.ps1 declares the GPL license' ($psVer -match 'GPL-3\.0-or-later')
 

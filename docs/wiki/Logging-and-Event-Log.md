@@ -68,6 +68,11 @@ Pipe-delimited, UTC, locale-independent:
 | `target` | The computer being acted on, or `-` when not applicable |
 | `message` | Newlines are flattened to spaces, so one record is always one line |
 
+Sizes and durations inside a message use a **dot** as the decimal separator (`1.50 KB`, `1.5h`)
+regardless of the host's regional settings. The process culture is pinned to `en-US` when the tool
+starts, and the format helpers state the invariant culture explicitly as well, so a machine set to a
+comma-separated locale still produces output that matches the documentation and stays greppable.
+
 The last rule matters: a message containing a newline cannot forge extra records, which keeps the
 file safe to parse line by line.
 

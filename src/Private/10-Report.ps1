@@ -324,8 +324,11 @@ function Write-DiagnosticReport {
             Write-ConsoleKeyValue -Label 'Total size' -Value (Format-ByteSize ([long]$sd['TotalBytes']))
             Write-ConsoleKeyValue -Label 'Owner' -Value $sd['AclOwner']
             if ($sd['OldestFile']) {
+                # AgeHours is fractional; format it invariantly so a host with a comma
+                # decimal separator still reads "12.5 h old" rather than "12,5 h old".
+                $ageText = ([double]$sd['OldestFile']['AgeHours']).ToString([Globalization.CultureInfo]::InvariantCulture)
                 $ageColor = if ([double]$sd['OldestFile']['AgeHours'] -gt 24) { 'Red' } else { 'White' }
-                Write-ConsoleKeyValue -Label 'Oldest file' -Value ("{0} ({1} h old)" -f $sd['OldestFile']['Name'], $sd['OldestFile']['AgeHours']) -ValueColor $ageColor
+                Write-ConsoleKeyValue -Label 'Oldest file' -Value ("{0} ({1} h old)" -f $sd['OldestFile']['Name'], $ageText) -ValueColor $ageColor
             }
             if ($sd['ByExtension']) {
                 Write-Host ''

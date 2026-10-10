@@ -9,7 +9,7 @@
 # ============================================================================
 $Script:ScriptName          = 'Clear-PrintSpoolerQueue'
 $Script:ProductFamily       = 'PrintSpoolerCleanup'
-$Script:ScriptVersion       = '4.0.0'
+$Script:ScriptVersion       = '4.0.1'
 $Script:ScriptBuild         = '@@BUILD_STAMP@@'
 $Script:ScriptAuthor        = 'Mikhail Deynekin'
 $Script:ScriptAuthorEmail   = 'Mikhail@Deynekin.com'

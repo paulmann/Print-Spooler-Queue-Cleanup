@@ -1,5 +1,5 @@
 # ===========================================================================
-#  Print Spooler Queue Cleanup - configuration template  (v4.0.0)
+#  Print Spooler Queue Cleanup - configuration template  (v4.0.1)
 # ===========================================================================
 #
 #  Copy this file next to Clear-PrintSpoolerQueue.ps1 (or to

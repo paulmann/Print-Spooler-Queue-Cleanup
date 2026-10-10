@@ -3,7 +3,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](./LICENSE)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%20%7C%207.x-blue.svg)](https://docs.microsoft.com/powershell/)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20%7C%20Server-0078d4.svg)](https://www.microsoft.com/windows)
-[![Version](https://img.shields.io/badge/version-4.0.0-green.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.0.1-green.svg)](./CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-715%20passing-brightgreen.svg)](./tests/Run-Tests.ps1)
 
 **Clears stuck Windows print queues safely, selectively and verifiably — locally or across a
@@ -67,6 +67,10 @@ Scheduler.
 ---
 
 ## What is new in v4.0.0
+
+**v4.0.1** is a maintenance release on top of it: it fixes the CI workflow that never ran, the
+self-update version check, and locale-dependent number formatting. See [CHANGELOG.md](./CHANGELOG.md)
+for the details.
 
 v3.1.0 stopped the Spooler, deleted `*.SHD`/`*.SPL`, and restarted it. That is still the core,
 but it was the only thing it could do. v4 is a rebuild around what actually happens on print

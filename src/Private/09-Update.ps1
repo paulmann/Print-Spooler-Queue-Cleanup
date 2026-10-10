@@ -725,7 +725,7 @@ function Update-SpoolerCleanupCore {
                 $asset = @($UpdateInfo.Assets | Where-Object { $_.Name -eq $name } | Select-Object -First 1)
                 if ($asset.Count -eq 0) { continue }
                 $dest = Join-Path $tempDir $name
-                Write-LogInfo "Downloading the release asset '$name' ($([Math]::Round($asset[0].Size / 1KB, 1)) KB)..." -Component 'Update'
+                Write-LogInfo "Downloading the release asset '$name' ($([Math]::Round($asset[0].Size / 1KB, 1).ToString([Globalization.CultureInfo]::InvariantCulture)) KB)..." -Component 'Update'
                 $null = New-WebRequestCompat -Uri $asset[0].Url -Headers $headers -OutFile $dest -TimeoutSec 120
                 $downloaded.Add($dest)
             }

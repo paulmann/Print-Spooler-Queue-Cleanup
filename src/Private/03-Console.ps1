@@ -219,7 +219,12 @@ function Format-ByteSize {
     $i = 0
     while ($abs -ge 1024 -and $i -lt ($units.Count - 1)) { $abs = $abs / 1024; $i++ }
     if ($i -eq 0) { return ("{0}{1} {2}" -f $sign, [int64]$abs, $units[0]) }
-    return ("{0}{1:N$Decimals} {2}" -f $sign, $abs, $units[$i])
+    # Explicit invariant culture rather than the process culture. The documented
+    # output is "1.50 KB", and sizes are read by machines (reports, JSON,
+    # dashboards), so a host with a comma decimal separator must not change it.
+    # The loop above stops below 1024, so no group separator is ever emitted.
+    $number = $abs.ToString('N' + $Decimals, [Globalization.CultureInfo]::InvariantCulture)
+    return ("{0}{1} {2}" -f $sign, $number, $units[$i])
 }
 
 function Format-Duration {

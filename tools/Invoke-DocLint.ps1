@@ -46,8 +46,18 @@ function Report {
     Write-Host ("  FAIL  {0}{1}  {2}" -f $File, $loc, $Issue) -ForegroundColor Red
 }
 
+# Only documents that ship are linted. dist/ and .git/ were already excluded; the
+# tool-runtime and index directories are excluded for the same reason: .zwork/ holds
+# agent run output and .ragraf/ holds the code-index bases, so neither is project
+# documentation. Linting them meant a Markdown-shaped table inside an unrelated
+# artefact could fail the release gate.
 $docs = @(Get-ChildItem -LiteralPath $Root -Recurse -Filter '*.md' -File |
-    Where-Object { $_.FullName -notmatch '[\\/]dist[\\/]' -and $_.FullName -notmatch '[\\/]\.git[\\/]' } |
+    Where-Object {
+        $_.FullName -notmatch '[\\/]dist[\\/]' -and
+        $_.FullName -notmatch '[\\/]\.git[\\/]' -and
+        $_.FullName -notmatch '[\\/]\.zwork[\\/]' -and
+        $_.FullName -notmatch '[\\/]\.ragraf[\\/]'
+    } |
     Sort-Object FullName)
 
 foreach ($doc in $docs) {

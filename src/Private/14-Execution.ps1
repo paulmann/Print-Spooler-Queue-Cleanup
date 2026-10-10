@@ -219,10 +219,13 @@ function Format-TimeSpanBrief {
     if ($Value -is [string]) { return $Value }
     try {
         $ts = ConvertFrom-AnyTimeSpan -Value $Value
-        if ($ts.TotalDays -ge 1) { return ("{0}d" -f [Math]::Round($ts.TotalDays, 1)) }
-        if ($ts.TotalHours -ge 1) { return ("{0}h" -f [Math]::Round($ts.TotalHours, 1)) }
-        if ($ts.TotalMinutes -ge 1) { return ("{0}m" -f [Math]::Round($ts.TotalMinutes, 1)) }
-        return ("{0}s" -f [Math]::Round($ts.TotalSeconds, 1))
+        # Invariant on purpose: a duration in a report or a log must not turn into
+        # "1,5h" because the operator's host uses a comma decimal separator.
+        $inv = [Globalization.CultureInfo]::InvariantCulture
+        if ($ts.TotalDays -ge 1) { return ("{0}d" -f [Math]::Round($ts.TotalDays, 1).ToString($inv)) }
+        if ($ts.TotalHours -ge 1) { return ("{0}h" -f [Math]::Round($ts.TotalHours, 1).ToString($inv)) }
+        if ($ts.TotalMinutes -ge 1) { return ("{0}m" -f [Math]::Round($ts.TotalMinutes, 1).ToString($inv)) }
+        return ("{0}s" -f [Math]::Round($ts.TotalSeconds, 1).ToString($inv))
     }
     catch {
         return [string]$Value

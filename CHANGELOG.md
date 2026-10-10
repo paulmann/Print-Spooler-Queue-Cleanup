@@ -6,6 +6,61 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [4.0.1]
+
+A maintenance release. No behaviour changes on a healthy host; two defects are fixed, both of
+which made the project disagree with its own guarantees.
+
+### Fixed
+
+**The CI workflow never ran.** GitHub could not parse `.github/workflows/ci.yml`, so every push
+produced a failure in under a second with **zero jobs** while the workflow page showed the file
+path instead of the workflow name. The cause was a single construct: `shell: ${{ matrix.shell }}`.
+A workflow containing only that expression fails; the identical job with a literal shell value
+runs. Both matrix entries declared `shell: pwsh`, so the expression added nothing. Replaced its six
+occurrences with the literal value. Lokal checks — YAML parsing, the published GitHub workflow
+schema and the project's own workflow lint — all accepted the broken file, so this was only
+findable by running it.
+
+**The self-update check could not find a version.** Its last-resort strategy fetched
+`Clear-PrintSpoolerQueue.ps1` from the branch root. That path has not existed since the tree moved
+to `src/` plus a build into `dist/` (git-ignored), so it answered 404, and with no releases and no
+tags published there was nothing left to fall back on. The strategy now reads the version stamp
+from `src/Shared/00-Constants.ps1`, the file this project documents as the source of truth.
+
+**Strategies 2 and 3 could install the wrong thing.** Both also fed `DownloadUrl`, so `-Update`
+would have downloaded a source fragment (or a launcher) and staged it under the artifact's name —
+an "update" that breaks the installation. They are now version checks only: they name the file they
+read, record why nothing is installable, and `-Update` refuses with that reason rather than
+reporting a failed download when the network was never the problem.
+
+**Number formatting depended on the host locale.** `Format-ByteSize` is documented as
+locale-independent and its documented example is `1.50 KB`, but it formatted through the process
+culture, so a host set to `ru-BY` printed `1,50 KB` and the test asserting the documented output
+failed. The culture is now pinned to `en-US` once in `Initialize-RuntimeState` (the single entry
+point shared by the standalone script, the module and a repeat in-process call), and the format
+helpers additionally format invariantly, so a trimmed-down host that cannot resolve `en-US` still
+produces a stable decimal separator. Durations, file ages and the build's size listing were made
+invariant for the same reason.
+
+**Two checks failed for reasons unrelated to the product.** The unit test for an unwritable log
+path used `/proc/1/cannot/write.log`, a Linux path that on Windows is an ordinary writable
+relative path; it now picks a location that is structurally impossible to write on the host that
+runs it. The brief-compliance check for diagnostic evidence required administrator rights in a
+non-interactive process that cannot raise a UAC prompt; it is now reported as inapplicable rather
+than as a gap.
+
+**The documentation lint scanned the tool's own scratch directories.** `tools/Invoke-DocLint.ps1`
+excluded `dist/` and `.git/` but walked `.zwork/` and `.ragraf/`, so a Markdown-shaped table inside
+an unrelated agent artefact could fail the release gate. Both directories are now excluded.
+
+### 4.0.1 — Changed
+
+- Version checks in `tools/module-test.ps1`, `tools/Verify-Brief.ps1` and the CI workflow read the
+expected version from the source of truth instead of comparing against a hardcoded literal.
+- `docs/wiki/Updates-and-Versioning.md` states that discovery strategies 2 and 3 are version checks,
+not installers.
+
 ## [4.0.0]
 
 A ground-up rebuild. v3.1.0 could stop the Spooler, delete `*.SHD`/`*.SPL` and restart it. That
@@ -180,7 +235,7 @@ three-command mental model and makes it safe to run unattended on a production p
 - Batch launcher rewritten as a thin delegating front-end with engine detection (PS7 preferred),
   UAC self-elevation, staged-update swap, correct non-interactive detection and full CLI parity
 
-### Changed
+### 4.0.0 — Changed
 
 - **BREAKING**: exit-code contract extended and renumbered. v3 used `0/1/2/3/4`;
   v4 uses `0–15` (see [Exit Codes](./docs/Exit-Codes.md)). `2` now means *Failed* and `1` means
@@ -195,7 +250,7 @@ three-command mental model and makes it safe to run unattended on a production p
 - `$global:LASTEXITCODE` assignment replaced by a documented epilogue that publishes the exit code
   correctly for `-File`, direct invocation and dot-sourcing (finding A21).
 
-### Fixed
+### 4.0.0 — Fixed
 
 - **Bare `-Help` - the exact command the README advertises - did not bind.**
   `-Help` was declared as a `[string]` section selector, so invoking it without a

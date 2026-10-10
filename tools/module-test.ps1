@@ -86,7 +86,16 @@ try {
 catch { Check 'Test-ModuleManifest succeeds' $false $_.Exception.Message }
 
 if ($manifest) {
-    Check 'Version is 4.0.0' ($manifest.Version.ToString() -eq '4.0.0') $manifest.Version.ToString()
+    # Compare against the source of truth rather than a literal: a hardcoded
+    # version here turns every release into a five-file edit and, worse, makes a
+    # version-mismatch defect look like a passing check.
+    $constantsPath = Join-Path $root 'src/Shared/00-Constants.ps1'
+    $expectedVersion = if (Test-Path -LiteralPath $constantsPath) {
+        [regex]::Match((Get-Content -LiteralPath $constantsPath -Raw), "\`$Script:ScriptVersion\s+=\s+'([^']+)'").Groups[1].Value
+    }
+    else { '' }
+    if (-not $expectedVersion) { throw "Could not read the version from $constantsPath." }
+    Check "Version is $expectedVersion (matches src/Shared/00-Constants.ps1)" ($manifest.Version.ToString() -eq $expectedVersion) $manifest.Version.ToString()
     Check 'PowerShellVersion floor is 5.1' ($manifest.PowerShellVersion.ToString() -eq '5.1') $manifest.PowerShellVersion.ToString()
     Check 'CompatiblePSEditions covers Desktop and Core' ((@($manifest.CompatiblePSEditions) -contains 'Desktop') -and (@($manifest.CompatiblePSEditions) -contains 'Core')) (@($manifest.CompatiblePSEditions) -join ', ')
     Check 'Author is set' ($manifest.Author -eq 'Mikhail Deynekin') $manifest.Author
@@ -133,7 +142,7 @@ if ($imported) {
 
 Section '3. Module functions actually execute'
 if ($imported) {
-    try { Check 'Get-SpoolerCleanupVersion reports 4.0.0' ((Get-SpoolerCleanupVersion).Version -eq '4.0.0') }
+    try { Check "Get-SpoolerCleanupVersion reports $expectedVersion" ((Get-SpoolerCleanupVersion).Version -eq $expectedVersion) }
     catch { Check 'Get-SpoolerCleanupVersion' $false $_.Exception.Message }
 
     try { Check 'Get-SpoolerCleanupVersion -Detailed includes integrity records' (@((Get-SpoolerCleanupVersion -Detailed).Files).Count -ge 0) }
@@ -168,7 +177,7 @@ if ($imported) {
 
     try {
         $ver = Clear-PrintSpoolerQueue -ShowVersion -NoColor -Quiet -PassThru
-        Check '-ShowVersion -PassThru returns the version object' ($null -ne $ver -and $ver.Version -eq '4.0.0')
+        Check '-ShowVersion -PassThru returns the version object' ($null -ne $ver -and $ver.Version -eq $expectedVersion)
     }
     catch { Check '-ShowVersion -PassThru via the module' $false $_.Exception.Message }
 

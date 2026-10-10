@@ -627,7 +627,7 @@ Write-Step 'Build complete'
 Get-ChildItem -LiteralPath $OutputPath -Recurse -File |
     Where-Object { $_.FullName -notmatch '[\\/]Logs[\\/]' } |
     Sort-Object FullName | ForEach-Object {
-    Write-Host ("   {0,-46} {1,10:N1} KB" -f $_.FullName.Substring($OutputPath.Length).TrimStart([IO.Path]::DirectorySeparatorChar, '/'), ($_.Length / 1KB))
+    Write-Host ("   {0,-46} {1,10} KB" -f $_.FullName.Substring($OutputPath.Length).TrimStart([IO.Path]::DirectorySeparatorChar, '/'), ($_.Length / 1KB).ToString('N1', [Globalization.CultureInfo]::InvariantCulture))
 }
 Write-Host ''
 Write-Host "Artifacts are in $OutputPath" -ForegroundColor Green
