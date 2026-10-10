@@ -52,18 +52,25 @@ Tried in order, so discovery keeps working when any one of them is unavailable:
 |---|---|---|
 | 1 | `GET /repos/{owner}/{repo}/releases/latest` | The repository publishes releases. Authoritative: carries assets and checksums |
 | 2 | `GET /repos/{owner}/{repo}/tags` | Only tags exist, no formal releases |
-| 3 | `GET raw.githubusercontent.com/{owner}/{repo}/{branch}/Clear-PrintSpoolerQueue.ps1` | Neither exists — the version stamp is read from the branch source |
+| 3 | `GET raw.githubusercontent.com/{owner}/{repo}/{branch}/src/Shared/00-Constants.ps1` | Neither exists — the version stamp is read from the branch source of truth |
 
 Strategy 3 parses the version with the **PowerShell AST** rather than a regex over the whole file, so
-a version-looking string in a comment cannot fool it. This repository had no releases and no tags
-before v4, and strategy 3 is what found `3.1.0` during development.
+a version-looking string in a comment cannot fool it. It reads `src/Shared/00-Constants.ps1`, which the
+project documents as the source of truth for the version — not a script at the branch root.
+
+**Strategies 2 and 3 are version checks, not installers.** A tag carries no release assets, and the
+branch carries source; the installable script is assembled into `dist/`, which is git-ignored and only
+ever attached to a release. So when discovery falls through to strategy 2 or 3, the tool reports the
+version it found and says plainly that nothing installable exists — `-Update` refuses with that
+reason rather than attempting a download that cannot succeed. Aiming them at the branch root is what
+produced the 404 there once `dist/` became the only place that script exists.
 
 Each strategy's failure is recorded in `Errors[]` rather than being swallowed, so a rate-limited run
 tells you *why* it fell through:
 
 ```
-Discovery: releases: GitHub API rate limit or forbidden (403). Set PSQ_GITHUB_TOKEN, or rely on
-the raw-file fallback.
+Discovery: releases: GitHub API rate limit or forbidden (403). Set the token, or rely on
+the branch-source version check (strategy 3), which reports the version but installs nothing.
 ```
 
 ### Channels
@@ -83,9 +90,7 @@ production.
 Anonymous GitHub API access allows **60 requests per hour per source IP**. A fleet of 400 hosts
 checking independently shares your NAT address and will hit that ceiling.
 
-```powershell
-$env:PSQ_GITHUB_TOKEN = 'ghp_...'      # 5000 req/h
-```
+Set a personal access token in the environment variable `PSQ_GITHUB_TOKEN` (5000 req/h).
 
 Prefer the environment variable over `-GitHubToken`: a token on a command line is visible in process
 listings and in scheduled-task definitions. The token is never written to the log, the report, or the

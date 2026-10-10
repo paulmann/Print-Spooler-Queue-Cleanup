@@ -310,14 +310,19 @@ function Get-GitHubLatestTag {
 function Get-RemoteVersionFromRawFile {
     <#
     .SYNOPSIS
-        Strategy 3: fetch the raw script from the branch and read its version stamp.
+        Strategy 3: fetch the version stamp out of the branch source of truth.
+    .DESCRIPTION
+        Reads $Script:UpdateSourceFilePath (the constants file that holds the
+        version) and parses the stamp from it. This is a VERSION CHECK ONLY:
+        the raw branch holds source, not a distributable, so what comes back is
+        a version to compare against - never something to install.
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][AllowEmptyString()][string]$Owner,
         [Parameter(Mandatory)][AllowEmptyString()][string]$Repo,
         [string]$Branch = $Script:UpdateDefaultBranch,
-        [string]$FileName = 'Clear-PrintSpoolerQueue.ps1'
+        [string]$FileName = $Script:UpdateSourceFilePath
     )
 
     $uri = "{0}/{1}/{2}/{3}/{4}" -f $Script:GitHubRawBase, $Owner, $Repo, $Branch, $FileName
@@ -325,12 +330,12 @@ function Get-RemoteVersionFromRawFile {
         $content = New-WebRequestCompat -Uri $uri -Raw
         $ver = Get-VersionFromRemoteScript -Content $content
         if (-not $ver) {
-            return [pscustomobject]@{ Version = $null; Source = 'raw'; Error = 'No version stamp was found in the remote script.'; RawUrl = $uri; Content = $content }
+            return [pscustomobject]@{ Version = $null; Source = 'raw'; Error = 'No version stamp was found in the branch source.'; SourceUrl = $uri; Content = $content }
         }
-        return [pscustomobject]@{ Version = $ver; Source = 'raw'; Error = $null; RawUrl = $uri; Content = $content }
+        return [pscustomobject]@{ Version = $ver; Source = 'raw'; Error = $null; SourceUrl = $uri; Content = $content }
     }
     catch {
-        return [pscustomobject]@{ Version = $null; Source = 'raw'; Error = $_.Exception.Message; RawUrl = $uri; Content = $null }
+        return [pscustomobject]@{ Version = $null; Source = 'raw'; Error = $_.Exception.Message; SourceUrl = $uri; Content = $null }
     }
 }
 
@@ -341,7 +346,7 @@ function Get-UpdateInfoCore {
     .OUTPUTS
         PSCustomObject { CurrentVersion, LatestVersion, UpdateAvailable, Channel,
         Source, TagName, ReleaseName, PublishedUtc, Prerelease, ReleaseNotes,
-        Assets, DownloadUrl, ExpectedSha256, ChecksumSource, RawUrl, Errors }
+        Assets, DownloadUrl, ExpectedSha256, ChecksumSource, SourceUrl, Errors }
     #>
     [CmdletBinding()]
     param(
@@ -371,7 +376,7 @@ function Get-UpdateInfoCore {
         DownloadUrl     = $null
         ExpectedSha256  = $null
         ChecksumSource  = $null
-        RawUrl          = $null
+        SourceUrl       = $null
         RepositoryUrl   = $Script:ScriptRepoUrl
         CheckedUtc      = [DateTime]::UtcNow.ToString('o')
         Errors          = @()
@@ -419,7 +424,7 @@ function Get-UpdateInfoCore {
         $errors.Add("releases: $($rel.Error)")
     }
 
-    # ---- strategy 2: tags ----------------------------------------------------
+    # ---- strategy 2: tags (version check only) ------------------------------
     if (-not $info.LatestVersion) {
         $tag = Get-GitHubLatestTag -Owner $Owner -Repo $Repo -Token $Token -IncludePrerelease:$IncludePrerelease
         if ($tag -and $tag.Version) {
@@ -427,34 +432,45 @@ function Get-UpdateInfoCore {
             $info.TagName = $tag.TagName
             $info.Source = 'tags'
             $info.Prerelease = $tag.Prerelease
-            $info.DownloadUrl = "{0}/{1}/{2}/refs/tags/{3}/{4}" -f $Script:GitHubRawBase, $Owner, $Repo, $tag.TagName, $PrimaryAssetName
-            $sumUrl = "{0}/{1}/{2}/refs/tags/{3}/{4}" -f $Script:GitHubRawBase, $Owner, $Repo, $tag.TagName, $Script:ChecksumAssetName
+            # A tag is a version marker, not a distributable. The installable
+            # script lives in dist/ (git-ignored) and is only ever attached to a
+            # release, so nothing here may be presented as a download URL - that
+            # is exactly what produced the 404 on the branch root. Confirm the
+            # tag's version against the source file on that tag, so a tag whose
+            # source contradicts it is reported instead of silently trusted.
+            $info.SourceUrl = "{0}/{1}/{2}/{3}/{4}" -f $Script:GitHubRawBase, $Owner, $Repo, $tag.TagName, $Script:UpdateSourceFilePath
             try {
-                $txt = New-WebRequestCompat -Uri $sumUrl -Raw
-                $parsed = ConvertFrom-ChecksumText -Text $txt
-                if ($parsed.Contains($PrimaryAssetName)) {
-                    $info.ExpectedSha256 = $parsed[$PrimaryAssetName]
-                    $info.ChecksumSource = 'tag-file'
+                $stamp = Get-VersionFromRemoteScript -Content (New-WebRequestCompat -Uri $info.SourceUrl -Raw)
+                if ($stamp -and $stamp -ne $tag.Version) {
+                    $errors.Add("tags: tag '$($tag.TagName)' says $($tag.Version), but $($Script:UpdateSourceFilePath) on that tag says $stamp.")
                 }
             }
             catch {
-                # A tag without checksums is still usable; the operator is told later.
+                # An older tag may predate the constants file; the tag is still a
+                # usable version marker, so this is not an error.
             }
+            $errors.Add('No downloadable artifact: the version came from a tag, which carries no release assets. Publish a release to update from here.')
         }
         elseif ($tag -and $tag.Error) {
             $errors.Add("tags: $($tag.Error)")
         }
     }
 
-    # ---- strategy 3: raw branch file ----------------------------------------
+    # ---- strategy 3: raw branch source file (version check only) ------------
     if (-not $info.LatestVersion) {
-        $raw = Get-RemoteVersionFromRawFile -Owner $Owner -Repo $Repo -Branch $Branch -FileName $PrimaryAssetName
+        $raw = Get-RemoteVersionFromRawFile -Owner $Owner -Repo $Repo -Branch $Branch
         if ($raw.Version) {
             $info.LatestVersion = $raw.Version
             $info.Source = "raw/$Branch"
-            $info.RawUrl = $raw.RawUrl
-            $info.DownloadUrl = $raw.RawUrl
-            $info.ReleaseNotes = 'No GitHub release metadata is available; the version was read from the branch source file.'
+            $info.SourceUrl = $raw.SourceUrl
+            # NOT a download source. The raw branch holds source, not the built
+            # artifact: dist/ is git-ignored, so there is no installable script
+            # at the branch root. Setting DownloadUrl here would download a
+            # constants fragment and stage it under the artifact's name. The
+            # operator is told plainly instead - and -Update, which cannot run
+            # without a verified artifact, is refused with the reason.
+            $info.ReleaseNotes = "Only the branch source was reachable; no release and no tag carries an installable artifact. Read from: $($raw.SourceUrl)"
+            $errors.Add('No downloadable artifact: strategy 3 read the version from the branch source, which is not a distributable. Publish a release (or push a tag) to update from here.')
         }
         elseif ($raw.Error) {
             $errors.Add("raw: $($raw.Error)")
@@ -725,7 +741,17 @@ function Update-SpoolerCleanupCore {
             $result.Method = 'direct-download'
         }
         else {
-            throw 'No downloadable asset or URL was discovered for this release.'
+            # Reached when a version was discovered but nothing installable was
+            # published for it - typically the raw-source strategy, which is a
+            # version check only. Naming the real cause matters: the operator
+            # used to be told 'download failed', which pointed at the network.
+            $cause = if ($null -ne $UpdateInfo.SourceUrl) {
+                "the version was read from the branch source ($($UpdateInfo.SourceUrl)), which is not a distributable; publish a release or push a tag"
+            }
+            else {
+                'this release publishes no downloadable asset'
+            }
+            throw "Nothing installable was discovered for v$($UpdateInfo.LatestVersion): $cause."
         }
 
         if ($downloaded.Count -eq 0) {

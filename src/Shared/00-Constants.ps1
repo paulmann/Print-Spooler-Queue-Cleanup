@@ -80,11 +80,17 @@ $Script:SpoolSubdirectories   = @('PRINTERS')   # the only leaf names we will ev
 #  REST API is rate-limited (60 req/h per IP, unauthenticated) or blocked:
 #    1. REST API  /releases/latest   - authoritative, has assets + checksums
 #    2. REST API  /tags              - works on repos without formal releases
-#    3. raw file  main/*.ps1         - last resort; parses the version stamp
+#    3. raw file  the source of truth - last resort; parses the version stamp
+#                  out of the constants file (see UpdateSourceFilePath)
 # ============================================================================
 $Script:GitHubApiBase        = 'https://api.github.com/repos'
 $Script:GitHubRawBase        = 'https://raw.githubusercontent.com'
 $Script:UpdateDefaultBranch  = 'main'
+# The one file that carries the version stamp. It MUST be a file that exists in
+# the repository: the built artifact lives in dist/, which is git-ignored, so
+# there is no *.ps1 script at the repository root to fetch. Read by strategy 3
+# as a VERSION CHECK ONLY - it is a constants fragment, never a download source.
+$Script:UpdateSourceFilePath = 'src/Shared/00-Constants.ps1'
 $Script:UpdateStateFileName  = 'update-state.json'
 $Script:PendingUpdateDirName = '.update'
 $Script:PendingUpdateMarker  = 'pending-update.json'

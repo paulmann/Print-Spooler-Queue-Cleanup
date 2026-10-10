@@ -48,31 +48,31 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Report the PowerShell version
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         run: |
           $PSVersionTable.PSVersion.ToString()
           $PSVersionTable.PSEdition
 
       - name: Parse validation (sources only, pre-build)
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         run: ./tools/Invoke-Validation.ps1
 
       - name: Build the distributables
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         run: ./tools/Build.ps1 -SkipTests -NoZip
 
       - name: Full quality gate
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         run: ./tests/Run-Tests.ps1
 
       - name: Built-in self test of the artifact
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         run: |
           ./dist/Clear-PrintSpoolerQueue.ps1 -SelfTest -Quiet -NoColor
           if ($LASTEXITCODE -ne 0) { throw "The artifact failed its own self-test (exit $LASTEXITCODE)." }
 
       - name: Verify the artifacts are consistent
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $ps  = Get-Content ./dist/Clear-PrintSpoolerQueue.ps1 -Raw
