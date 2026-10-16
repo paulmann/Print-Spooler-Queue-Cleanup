@@ -210,7 +210,10 @@ static void ShowPage(int p) {
     Show(w.cDesk, p == 3); Show(w.cStart, p == 3); Show(w.cAuto, p == 3); Show(w.cTray, p == 3);
     Show(w.status, p == 4);
     Show(w.bBack, p > 0 && p < 4);
+    Show(w.bCancel, true);
     EnableWindow(w.bNext, p < 4);
+    CtrlSetStrId(w.bNext, p == 4 ? STR_WIZ_LAUNCH : STR_WIZ_NEXT);
+    if (p == 4) SetWindowTextW(w.status, w.o.dir.c_str());
     std::wstring title;
     switch (p) {
         case 0: title = psqc::Str(STR_WIZ_WELCOME);
@@ -225,6 +228,8 @@ static void ShowPage(int p) {
     }
     SetWindowTextW(w.stTitle, title.c_str());
     InvalidateRect(w.hwnd, nullptr, TRUE);
+    UpdateWindow(w.hwnd);
+    util::QaShot(w.hwnd, util::Fmt(L"wizard_p%d", p).c_str());
 }
 
 static void DoInstall() {
@@ -340,6 +345,9 @@ WizardResult WizardRun() {
     wc.hIcon = util::LoadAppIcon(32, 32);
     wc.lpszClassName = PSQC_WIZARD_CLASS;
     RegisterClassExW(&wc);
+#ifdef PSQC_QA_DELAY
+    OutputDebugStringA("PSQC: wiz register");
+#endif
 
     int dpi = 96;
     int W = MulDiv(560, dpi, 96), H = MulDiv(430, dpi, 96);
@@ -349,6 +357,9 @@ WizardResult WizardRun() {
                              WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, 0, 0, W, H,
                              nullptr, nullptr, g.hInst, nullptr);
     g.hwndWizard = w.hwnd;
+#ifdef PSQC_QA_DELAY
+    OutputDebugStringA("PSQC: wiz top created"); Sleep(900);
+#endif
     ThemeDarkTitlebar(w.hwnd, Th().dark);
 
     auto S = [&](int v) { return MulDiv(v, dpi, 96); };
@@ -378,6 +389,7 @@ WizardResult WizardRun() {
     SendMessageW(w.stText, WM_SETFONT, (WPARAM)Th().font, TRUE);
     for (HWND h : { w.rInstall, w.rRunOnce, w.rAll, w.rCur, w.scopeNote, w.eDir, w.cDesk, w.cStart, w.cAuto, w.cTray, w.status })
         SendMessageW(h, WM_SETFONT, (WPARAM)Th().font, TRUE);
+    OutputDebugStringA("PSQC: wiz children done");
     SendMessageW(w.rInstall, BM_SETCHECK, BST_CHECKED, 0);
     SendMessageW(w.rCur, BM_SETCHECK, BST_CHECKED, 0);
     SendMessageW(w.cDesk, BM_SETCHECK, BST_CHECKED, 0);
@@ -408,6 +420,15 @@ WizardResult WizardRun() {
     util::CenterWindow(w.hwnd, nullptr);
     ShowWindow(w.hwnd, SW_SHOW);
     UpdateWindow(w.hwnd);
+#ifdef PSQC_QA_DELAY
+    OutputDebugStringA("PSQC: wiz shown"); Sleep(900);
+#endif
+    if (getenv("PSQC_SHOTDIR")) {          // QA self-capture: walk all pages, then run-once
+        for (int p = 0; p <= 4; ++p) ShowPage(p);
+        DestroyWindow(w.hwnd);
+        g.hwndWizard = nullptr;
+        return WR_RunOnce;
+    }
 
     MSG msg;
     while (GetMessageW(&msg, nullptr, 0, 0) > 0) {

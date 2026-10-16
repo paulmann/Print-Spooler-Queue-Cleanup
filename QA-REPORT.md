@@ -112,7 +112,54 @@ text = 4.6:1 ≥ AA). No layout drift found at any scale; RTL mirror verified lo
    dark groups render with classic colors; acceptable per support matrix.
 4. Store build disables in-app updater (`PSQC_STORE_BUILD`) by design.
 
+## Cycle 6 — real-Windows report from the owner + root-cause fix (2026-10-16)
+
+**Report (owner's Windows 11, dark theme):** first-run wizard renders title, texts and the
+standard radio button, but *all custom buttons are missing* («просто черный без кнопок»).
+
+**Root cause:** owner-draw controls were created with `WS_VISIBLE`. Windows sends the first
+`WM_DRAWITEM` **during `CreateWindowExW`**, i.e. *before* the control's paint data was
+registered in the controls table (`g_ctrls[h] = d` happened after the create call). The
+first draw therefore found no data, returned FALSE and painted nothing; nothing invalidated
+the control afterwards, so it stayed invisible forever — on every screen (wizard, toolbar,
+chips, switches, dialog buttons).
+
+**Fix (controls.cpp):** controls are now created **without** `WS_VISIBLE`; the paint data is
+registered first, then `ShowWindow(SW_SHOW)` triggers the first, correctly-handled
+`WM_DRAWITEM`. Applies to buttons, switches and chips everywhere (wizard, main, settings,
+restore, about).
+
+**Concurrent review fixes:**
+* hotkeys promised by the docs but missing in code are implemented: `F5`, `Del`,
+  `Ctrl+A`, `Ctrl+,`, `F1`, `Esc` (MainWndProc `WM_KEYDOWN`);
+* wizard: *Cancel* is always visible; on the final page *Next* becomes *Launch now* and the
+  status line shows the install path;
+* fonts: `Segoe UI Variable` is Windows 11-only — on Windows 10 (build < 22000) the code
+  now falls back to `Segoe UI` / `Segoe UI Semibold` instead of an unmapped face;
+* main layout: right toolbar group is clamped so it can never overlap the left group on
+  narrow windows;
+* QA self-capture hook `PSQC_SHOTDIR` (see below) + `tools/qa_capture.bat`.
+
+**Wine investigation, final verdict:** the Wine 8 GUI crash (cycles 2–5) reproduces at
+process start regardless of theme, manifest, tooltips, control styles, CPU affinity,
+virtual desktop and compatibility mode, disappears only under `+relay` tracing, and lands
+in wine's builtin `uxtheme` at a fixed offset with a corrupted theme-handle dereference —
+including builds where our code no longer calls any undocumented uxtheme entry (the
+immersive-dark ordinals are now skipped on Wine entirely via an `ntdll!wine_get_version`
+probe). Classified as a Wine 8 defect; real Windows is unaffected (owner's screenshot
+renders the full window; only the owner-draw bug above applied).
+
+**Screenshot verification on real Windows:** the product now ships a QA hook — with
+`PSQC_SHOTDIR=<dir>` set, the app self-captures every screen (wizard pages 0–4, main,
+settings, restore, about) via `PrintWindow` into `<dir>\*_<light|dark>.bmp` and exits.
+`tools/qa_capture.bat` runs both theme passes back-to-back with a settings reset, so one
+double-click yields the full matrix: 5 wizard + 4 app screens × 2 themes.
+
 ## Verdict
 
 Build gate green, logic tests green, CLI e2e green, interaction audit clean after 11 fixes,
-i18n integrity enforced by CI. Release-blocking defects: **none**.
+i18n integrity enforced by CI. Cycle 6 fixed the real-Windows owner-draw first-paint defect
+reported by the owner (invisible custom buttons) plus five review findings; the QA
+self-capture hook (`PSQC_SHOTDIR` + `tools/qa_capture.bat`) provides the full
+screen × theme screenshot matrix on real Windows in one double-click.
+Release-blocking defects: **none known**.

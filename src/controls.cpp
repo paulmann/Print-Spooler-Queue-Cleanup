@@ -75,7 +75,13 @@ static LRESULT CALLBACK CtrlSubclass(HWND h, UINT msg, WPARAM wp, LPARAM lp, UIN
 }
 
 static HWND MakeBase(HWND parent, int ctrlId, DWORD style, int w, int hh) {
-    HWND h = CreateWindowExW(0, L"BUTTON", L"", style | WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+#ifdef PSQC_QA_DELAY
+    Sleep(150);   // QA-only build knob: slows creation down for Wine race workaround
+#endif
+    // NOTE: no WS_VISIBLE here — the first WM_DRAWITEM must happen only after the
+    // control's paint data is registered (otherwise the first paint draws nothing and,
+    // on some comctl implementations, an unhandled owner-draw item is never repainted).
+    HWND h = CreateWindowExW(0, L"BUTTON", L"", style | WS_CHILD | BS_OWNERDRAW,
                              0, 0, w, hh, parent, (HMENU)(INT_PTR)ctrlId, g_hInstForControls(), nullptr);
     SetWindowSubclass(h, CtrlSubclass, 1, 0);
     return h;
@@ -92,6 +98,7 @@ HWND CreatePsqcButton(HWND parent, int ctrlId, int strId, wchar_t glyph, int btn
     d.strId = strId;
     d.glyph = glyph;
     g_ctrls[h] = d;
+    ShowWindow(h, SW_SHOW);   // only now the first WM_DRAWITEM can paint correctly
     return h;
 }
 
@@ -102,6 +109,7 @@ HWND CreatePsqcToggle(HWND parent, int ctrlId, int strId, bool checked) {
     d.strId = strId;
     d.checked = checked;
     g_ctrls[h] = d;
+    ShowWindow(h, SW_SHOW);
     return h;
 }
 
@@ -110,6 +118,7 @@ HWND CreatePsqcChip(HWND parent, int ctrlId) {
     CtrlData d;
     d.kind = CK_Chip;
     g_ctrls[h] = d;
+    ShowWindow(h, SW_SHOW);
     return h;
 }
 

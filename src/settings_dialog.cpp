@@ -163,6 +163,11 @@ static void RestoreShow() {
     FillRestoreList();
     util::CenterWindow(r.hwnd, d.hwnd);
     ShowWindow(r.hwnd, SW_SHOW);
+    UpdateWindow(r.hwnd);
+#ifdef PSQC_QA_DELAY
+    Sleep(700);
+#endif
+    util::QaShot(r.hwnd, L"restore");
 }
 
 // ---- settings dialog --------------------------------------------------------------
@@ -347,4 +352,10 @@ void SettingsShow() {
     SetWindowTextW(d.eRefresh, std::to_wstring(S().refreshSec).c_str());
     util::CenterWindow(d.hwnd, g.hwndMain);
     ShowWindow(d.hwnd, SW_SHOW);
+    UpdateWindow(d.hwnd);
+#ifdef PSQC_QA_DELAY
+    Sleep(700);
+#endif
+    util::QaShot(d.hwnd, L"settings");
+    RestoreShow();
 }

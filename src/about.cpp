@@ -183,4 +183,9 @@ void AboutShow() {
 
     util::CenterWindow(a.hwnd, g.hwndMain);
     ShowWindow(a.hwnd, SW_SHOW);
+    UpdateWindow(a.hwnd);
+#ifdef PSQC_QA_DELAY
+    Sleep(700);
+#endif
+    util::QaShot(a.hwnd, L"about");
 }

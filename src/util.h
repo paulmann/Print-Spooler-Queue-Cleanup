@@ -50,6 +50,7 @@ bool RegDeleteTree(HKEY root, const wchar_t* subkey);
 
 // ---- system ----------------------------------------------------------------
 bool IsElevated();
+bool IsWineRuntime();              // classic ntdll!wine_get_version probe
 DWORD WindowsBuild();
 void OpenUrl(const char* url);
 bool ShellRun(const wchar_t* verb, const wchar_t* file, const wchar_t* params, bool wait, DWORD* exitCode);
@@ -74,6 +75,7 @@ int  Scale(HWND hwnd, int dip);                              // dip * dpi / 96
 
 // ---- misc ------------------------------------------------------------------
 void ApplyRtlLayout(HWND root);          // mirror window + children for RTL languages
+bool QaShot(HWND hwnd, const wchar_t* name);  // self-capture to %PSQC_SHOTDIR% (QA hook)
 bool CopyToClipboard(const std::wstring& text);
 HICON LoadAppIcon(int cx, int cy);
 std::wstring LoadStringRes(UINT id);                          // rc strings (fallback only)

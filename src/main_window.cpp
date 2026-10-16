@@ -75,6 +75,7 @@ static void Layout() {
     Place(m.btnPause, x, W(m.btnPause));
     Place(m.btnRestart, x, W(m.btnRestart));
     int xr = rc.right - margin;
+    if (xr < x + S(120)) xr = x + S(120);   // narrow-window clamp: never overlap left group
     xr -= W(m.btnAbout); SetWindowPos(m.btnAbout, nullptr, xr, y, W(m.btnAbout), toolH, SWP_NOZORDER);
     xr -= S(8) + W(m.btnTheme); SetWindowPos(m.btnTheme, nullptr, xr, y, W(m.btnTheme), toolH, SWP_NOZORDER);
     xr -= S(8) + W(m.btnSettings); SetWindowPos(m.btnSettings, nullptr, xr, y, W(m.btnSettings), toolH, SWP_NOZORDER);
@@ -533,6 +534,18 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_TIMER:
             if (wp == 1 && !m.busy && IsWindowVisible(m.hwnd)) MainWindowRefreshNow();
             return 0;
+        case WM_KEYDOWN: {
+            bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+            switch (wp) {
+                case VK_F5: MainWindowRefreshNow(); return 0;
+                case VK_DELETE: DeleteSelected(); return 0;
+                case VK_ESCAPE: PostMessageW(hwnd, WM_CLOSE, 0, 0); return 0;
+                case VK_F1: util::OpenUrl(PSQC_WIKI_URL); return 0;
+                case 'A': if (ctrl) { ListView_SetItemState(m.list, -1, LVIS_SELECTED, LVIS_SELECTED); return 0; } break;
+                case VK_OEM_COMMA: if (ctrl) { SettingsShow(); return 0; } break;
+            }
+            break;
+        }
         case WM_PSQC_REFRESH:
             MainWindowRefreshNow();
             return 0;
@@ -658,6 +671,9 @@ void MainWindowCreate(HINSTANCE hInst, int showCmd) {
     m.hwnd = CreateWindowExW(0, PSQC_WINDOW_CLASS, psqc::Str(STR_APP_TITLE),
                              WS_OVERLAPPEDWINDOW, x, y, w, h, nullptr, nullptr, hInst, nullptr);
     g.hwndMain = m.hwnd;
+#ifdef PSQC_QA_DELAY
+    Sleep(900);
+#endif
     dpi = util::DpiOf(m.hwnd);
     ThemeRefreshDpi(dpi);
 
@@ -721,9 +737,14 @@ void MainWindowCreate(HINSTANCE hInst, int showCmd) {
     if (S().startMinimized || showCmd == SW_MINIMIZE || showCmd == SW_SHOWMINIMIZED) show = SW_HIDE;
     ShowWindow(m.hwnd, show);
     UpdateWindow(m.hwnd);
+#ifdef PSQC_QA_DELAY
+    Sleep(900);
+#endif
 
     if (S().refreshSec > 0)
         g.timerRefresh = SetTimer(m.hwnd, 1, S().refreshSec * 1000, nullptr);
+    UpdateWindow(m.hwnd);
+    util::QaShot(m.hwnd, L"main");
 }
 
 void MainWindowShowAndActivate() {

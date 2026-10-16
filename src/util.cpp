@@ -2,10 +2,67 @@
 #include "util.h"
 #include <shlwapi.h>
 #include <sddl.h>
+#include "theme.h"
 
 bool RtlActiveViaI18n();   // defined in i18n.cpp (global namespace)
 
 namespace util {
+
+bool QaShot(HWND hwnd, const wchar_t* name) {
+    const char* dir = getenv("PSQC_SHOTDIR");
+    if (!dir || !hwnd || !IsWindowVisible(hwnd)) return false;   // never capture hidden windows
+    RECT rc{};
+    GetWindowRect(hwnd, &rc);
+    int w = rc.right - rc.left, h = rc.bottom - rc.top;
+    if (w <= 0 || h <= 0 || w > 4096 || h > 4096) return false;
+    HDC hdcWin = GetDC(hwnd);
+    HDC hdc = CreateCompatibleDC(hdcWin);
+    BITMAPINFO bi{};
+    bi.bmiHeader.biSize = sizeof(bi.bmiHeader);
+    bi.bmiHeader.biWidth = w;
+    bi.bmiHeader.biHeight = -h;
+    bi.bmiHeader.biPlanes = 1;
+    bi.bmiHeader.biBitCount = 32;
+    bi.bmiHeader.biCompression = BI_RGB;
+    void* bits = nullptr;
+    HBITMAP bmp = CreateDIBSection(hdc, &bi, DIB_RGB_COLORS, &bits, nullptr, 0);
+    bool ok = false;
+    if (bmp && bits) {
+        HGDIOBJ old = SelectObject(hdc, bmp);
+        RECT zr{ 0, 0, w, h };
+        FillRect(hdc, &zr, (HBRUSH)GetStockObject(BLACK_BRUSH));
+        PrintWindow(hwnd, hdc, 0);
+        GdiFlush();
+        std::string data((const char*)bits, (size_t)w * h * 4);
+        SelectObject(hdc, old);
+        // BMP file: header + info (bottom-up) + rows reversed
+        uint32_t rowBytes = (uint32_t)w * 4;
+        uint32_t imgSize = rowBytes * (uint32_t)h;
+        std::string file;
+        uint16_t bm = 0x4D42;
+        uint32_t off = 14 + 40;
+        file.append((const char*)&bm, 2);
+        uint32_t fsz = off + imgSize; file.append((const char*)&fsz, 4);
+        uint32_t z = 0; file.append((const char*)&z, 4); file.append((const char*)&off, 4);
+        uint32_t ih = 40; file.append((const char*)&ih, 4);
+        int32_t iw = w, ihh = h; file.append((const char*)&iw, 4); file.append((const char*)&ihh, 4);
+        uint16_t pl = 1, bpp = 32; file.append((const char*)&pl, 2); file.append((const char*)&bpp, 2);
+        uint32_t comp = 0; file.append((const char*)&comp, 4); file.append((const char*)&imgSize, 4);
+        int32_t ppm = 3780; file.append((const char*)&ppm, 4); file.append((const char*)&ppm, 4);
+        uint32_t cu = 0; file.append((const char*)&cu, 4); file.append((const char*)&cu, 4);
+        for (int y = h - 1; y >= 0; --y)
+            file.append(data.data() + (size_t)y * rowBytes, rowBytes);
+        std::wstring path = util::Utf8ToWide(dir);
+        path = JoinPath(path, Fmt(L"%s_%s.bmp", name, ThemeDarkNow() ? L"dark" : L"light"));
+        ok = WriteFileAll(path, file);
+        DeleteObject(bmp);
+    }
+    DeleteDC(hdc);
+    ReleaseDC(hwnd, hdcWin);
+    return ok;
+}
+
+
 
 // ---- strings ---------------------------------------------------------------
 std::wstring Utf8ToWide(std::string_view utf8) {
@@ -291,6 +348,11 @@ bool IsElevated() {
     bool ok = GetTokenInformation(tok, TokenElevation, &el, sizeof(el), &n) && el.TokenIsElevated;
     CloseHandle(tok);
     return ok;
+}
+
+bool IsWineRuntime() {
+    HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+    return ntdll && GetProcAddress(ntdll, "wine_get_version") != nullptr;
 }
 
 DWORD WindowsBuild() {

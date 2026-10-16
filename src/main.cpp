@@ -9,6 +9,8 @@
 #include "tray.h"
 #include "wizard.h"
 #include "update.h"
+#include "settings_dialog.h"
+#include "about.h"
 
 AppState g;
 namespace util { bool g_portable_settings = false; }
@@ -213,7 +215,11 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int showCmd) {
         // stay hidden; user opens via tray dblclick
     }
 
-    if (S().autoUpdate && util::UnixSeconds() - S().lastUpdateCheck > 86400)
+    if (getenv("PSQC_SHOTDIR")) {          // QA self-capture drive: open every dialog once
+        SettingsShow();
+        AboutShow();
+        PostQuitMessage(0);
+    } else if (S().autoUpdate && util::UnixSeconds() - S().lastUpdateCheck > 86400)
         UpdateCheckAsync(false);
 
     MSG msg;

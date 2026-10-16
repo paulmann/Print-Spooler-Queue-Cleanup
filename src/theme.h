@@ -28,6 +28,7 @@ struct Theme {
 };
 
 const Theme& Th();
+bool ThemeDarkNow();
 void ThemeInit(int dpi);                 // (re)create palettes+fonts for dpi & current mode
 bool ThemeIsDarkEffective();             // resolved: mode==system ? registry : mode
 bool SystemIsDark();                     // HKCU AppsUseLightTheme == 0

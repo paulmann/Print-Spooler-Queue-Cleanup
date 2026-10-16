@@ -20,6 +20,11 @@ static void LoadUxtheme() {
     static bool done = false;
     if (done) return;
     done = true;
+    // The immersive-dark ordinals (104/133/135/136) are undocumented and their meaning
+    // differs across Windows builds and Wine implementations. On Wine they map to
+    // unrelated functions and calling them corrupts the theme manager, so skip them
+    // there (documented SetWindowTheme/DWM paths still give full dark mode).
+    if (util::IsWineRuntime()) return;
     HMODULE ux = LoadLibraryW(L"uxtheme.dll");
     if (!ux) return;
     pAllowDark = (PFN_AllowDarkModeForWindow)GetProcAddress(ux, MAKEINTRESOURCEA(133));
@@ -46,6 +51,20 @@ bool ThemeIsDarkEffective() {
 int ThemeModeNow() { return g_mode; }
 
 static HFONT MakeFont(int dpi, int pt, bool bold, const wchar_t* face) {
+    // Segoe UI Variable exists on Windows 11 only; fall back to Segoe UI on Windows 10.
+    if (wcscmp(face, L"Segoe UI Variable Text") == 0 || wcscmp(face, L"Segoe UI Variable Display") == 0) {
+        DWORD build = 0;
+        DWORD v = 0;
+        HKEY k{};
+        if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", 0, KEY_READ, &k) == ERROR_SUCCESS) {
+            DWORD sz = sizeof(v), type = 0;
+            if (RegQueryValueExW(k, L"CurrentBuildNumber", nullptr, &type, (BYTE*)&v, &sz) == ERROR_SUCCESS)
+                build = v;
+            RegCloseKey(k);
+        }
+        if (build && build < 22000)
+            face = (wcscmp(face, L"Segoe UI Variable Display") == 0) ? L"Segoe UI Semibold" : L"Segoe UI";
+    }
     return CreateFontW(-MulDiv(pt, dpi, 72), 0, 0, 0, bold ? FW_SEMIBOLD : FW_NORMAL, FALSE, FALSE, FALSE,
                        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
                        DEFAULT_PITCH | FF_SWISS, face);
@@ -116,6 +135,7 @@ static void BuildPalette(Theme& t, bool dark, int dpi) {
 }
 
 const Theme& Th() { return g_theme; }
+bool ThemeDarkNow() { return g_theme.dark; }
 
 void ThemeInit(int dpi) {
     LoadUxtheme();
