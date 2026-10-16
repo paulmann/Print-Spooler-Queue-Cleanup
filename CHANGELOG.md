@@ -6,6 +6,73 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [5.0.0] — 2026-10-16
+
+**The native rewrite.** The product moves from a PowerShell script to a single
+self-contained Win32 executable written in modern C++ (C++20-clean, C++26-ready toolchains),
+with a graphical interface, tray integration, a built-in installer and self-update.
+No .NET, no VC++ redistributable, no PowerShell, no external installer engine on the target
+machine — only system DLLs that ship with Windows 10/11.
+
+### Added
+
+- **Main window**: live per-printer grouped job list (document, owner, size, status,
+  submitted time), auto-refresh (configurable, default 3 s), empty-state hint, status bar
+  with job/printer counters and last-refresh time, header chips for spooler service state,
+  elevation state and portable mode.
+- **Actions**: refresh, delete selected jobs, clear all jobs (confirmable), pause/resume
+  queues, restart Print Spooler service — each with busy-state and result reporting.
+- **Safety**: optional automatic backup of `*.SPL`/`*.SHD` before bulk purge, backup list
+  and one-click **restore** dialog (service stop → copy back → service start).
+- **Tray icon**: live "Print queue jobs: N" menu item, open app / open print queue / open
+  printer management / clear all / pause / resume / restart service / theme submenu /
+  autostart toggle / check updates / about / exit; double-click opens the main window;
+  balloon notifications for results and updates.
+- **Theming**: light, dark and follow-system modes; system mode auto-detects
+  `AppsUseLightTheme` and reacts live to `WM_SETTINGCHANGE / ImmersiveColorSet`;
+  immersive dark title bar and dark common controls; custom Fluent-style owner-drawn
+  buttons, switches and status chips in both themes; Per-Monitor-V2 DPI awareness.
+- **i18n**: 30 UI languages (en, ru, es, zh-Hans, zh-Hant, ar, hi, pt, fr, de, ja, ko, it,
+  tr, vi, id, th, nl, pl, uk, ro, cs, sv, hu, el, he, fa, da, fi, nb), default = system UI
+  language, override in settings/tray-less combo and `/lang=`; RTL layout for ar/he/fa;
+  native-test gate verifies every table (145 strings × 30) and placeholder parity.
+- **Built-in installer**: first-run wizard (install for all users / just me, folder choice
+  with browse, desktop & Start-menu shortcuts, start-with-Windows, start minimized to tray),
+  UAC elevation only when installing for all users; "run once without installing" path;
+  Programs & Features registration with quiet uninstall; `/install`, `/uninstall` CLI with
+  silent flags; self-delete scheduling on uninstall.
+- **Self-update**: GitHub Releases API check (manual + daily silent), download with
+  verification, in-place replace via detached `/replace` child that waits for the parent,
+  reboot-scheduled fallback when the file is locked.
+- **Settings dialog**: appearance, behavior (9 switches), logging level, auto-refresh
+  period, data section (open logs/backups, restore, uninstall), portable-mode note.
+- **About dialog**: version, author (Mikhail Deynekin <icons@Deynekin.com>), links to
+  website, repository, license (PolyForm Noncommercial 1.0.0) and wiki knowledge base,
+  check-updates button, copy-diagnostics button.
+- **CLI**: `/purge`, `/list`, `/status`, `/tray`, `/portable`, `/lang=`, `/theme=`,
+  `/install …`, `/uninstall …`, `/help` with documented exit codes (0/1/2).
+- **Production hardening**: single-instance mutex with second-instance activation,
+  UTF-8 log file with rotation, diagnostics dump, `asInvoker` manifest with
+  PerMonitorV2 + longPathAware + activeCodePage, static linking, `-Wall -Wextra` clean.
+- **Store readiness**: MSIX manifest template, store assets and submission guide
+  ([docs/MICROSOFT-STORE.md](./docs/MICROSOFT-STORE.md)); SmartScreen reputation guide
+  ([docs/SMARTSCREEN.md](./docs/SMARTSCREEN.md)).
+
+### Changed
+
+- Repository layout: C++ source in `src/`, resources in `res/`, store assets in
+  `packaging/`, native tests in `tests/native/`; the v4 PowerShell tree moved to
+  `legacy/powershell/` (unchanged, still referenced by its own docs).
+- Documentation rewritten for v5; wiki extended with GUI, tray, theming, installer and
+  update pages.
+
+### Removed
+
+- Dependency on PowerShell for the primary user experience (v4 remains available as legacy
+  and keeps its own CLI surface for automation).
+
+---
+
 ## [4.0.1]
 
 A maintenance release. No behaviour changes on a healthy host; two defects are fixed, both of

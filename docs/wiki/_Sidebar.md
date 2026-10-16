@@ -1,4 +1,13 @@
-### 🖨️ Print Spooler Queue Cleanup v4.0.0
+### 🖨️ Print Spooler Queue Cleanup v5.0.0
+
+#### Native app (v5)
+* [GUI Application](GUI-Application)
+* [Tray Icon and Notifications](Tray-Icon-and-Notifications)
+* [Themes and Languages](Themes-and-Languages)
+* [Installer, Uninstall and Updates](Installer-Uninstall-and-Updates)
+* [CLI and Automation](CLI-and-Automation)
+
+#### PowerShell legacy (v4)
 
 **[Home](Home)**
 

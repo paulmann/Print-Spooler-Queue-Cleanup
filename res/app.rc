@@ -1,0 +1,41 @@
+// Win32 resources: icon, manifest, version info.
+#include <winres.h>
+#include "../src/version.h"
+
+#define IDI_APP 1
+IDI_APP ICON "app.ico"
+
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "app.manifest"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION PSQC_VERSION_QUAD
+ PRODUCTVERSION PSQC_VERSION_QUAD
+ FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+#ifdef _DEBUG
+ FILEFLAGS VS_FF_DEBUG
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS VOS__WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName",      "Mikhail Deynekin"
+            VALUE "FileDescription",  "Print Spooler Queue Cleanup"
+            VALUE "FileVersion",      PSQC_VERSION_STR_A
+            VALUE "InternalName",     "SpoolerCleanup"
+            VALUE "LegalCopyright",   "(c) 2026 Mikhail Deynekin. PolyForm Noncommercial 1.0.0"
+            VALUE "OriginalFilename", "SpoolerCleanup.exe"
+            VALUE "ProductName",      "Print Spooler Queue Cleanup"
+            VALUE "ProductVersion",   PSQC_VERSION_STR_A
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

@@ -1,13 +1,17 @@
 # Print Spooler Queue Cleanup — Wiki
 
-**Clears stuck Windows print queues safely, selectively and verifiably — locally or across a
-fleet — with backup, diagnostics, repair, structured logging, machine-readable reports and
-built-in self-updating.**
+**Clears stuck Windows print queues safely, selectively and verifiably — now as a native
+Win32 app with a GUI, tray guardian, built-in installer and self-update.**
 
-One PowerShell file. No modules to install, no dependencies, no internet access required to run.
+> **v5.0.0 (native)** · Windows 10 / 11 x64 · one static `SpoolerCleanup.exe`, no .NET, no
+> redistributables · PolyForm Noncommercial 1.0.0
+>
+> Start here: [GUI Application](GUI-Application) · [Tray](Tray-Icon-and-Notifications) ·
+> [Themes & Languages](Themes-and-Languages) · [Installer & Updates](Installer-Uninstall-and-Updates) ·
+> [CLI & Automation](CLI-and-Automation)
 
-> **v4.0.0** · Windows 10 / 11 / Server 2012 R2+ · Windows PowerShell 5.1 or PowerShell 7.x ·
-> GPL-3.0-or-later
+The pages below the *PowerShell legacy (v4)* section document the v4 script kept under
+`legacy/powershell/` — still the right tool for fleet/remote scenarios.
 
 ---
 
