@@ -135,6 +135,7 @@ void AboutShow() {
                              WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, 0, 0, W, H,
                              g.hwndMain, nullptr, g.hInst, nullptr);
     g.hwndAbout = a.hwnd;
+    util::SetClientSize(a.hwnd, W, H);   // W x H is the client area
     ThemeDarkTitlebar(a.hwnd, Th().dark);
 
     auto mkStatic = [&](int id, DWORD style) {

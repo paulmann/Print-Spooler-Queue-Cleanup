@@ -151,6 +151,7 @@ static void RestoreShow() {
                              WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, 0, 0, Sc(460), Sc(330),
                              d.hwnd, nullptr, g.hInst, nullptr);
     ThemeDarkTitlebar(r.hwnd, Th().dark);
+    util::SetClientSize(r.hwnd, Sc(460), Sc(330));   // Sc(460) x Sc(330) is the client area
     HWND hint = CreateWindowExW(0, L"STATIC", psqc::Str(STR_RESTORE_HINT), WS_CHILD | WS_VISIBLE, Sc(16), Sc(12), Sc(430), Sc(20), r.hwnd, nullptr, g.hInst, nullptr);
     r.list = CreateWindowExW(WS_EX_CLIENTEDGE, L"LISTBOX", L"", WS_CHILD | WS_VISIBLE | LBS_HASSTRINGS | WS_VSCROLL, Sc(16), Sc(36), Sc(428), Sc(210), r.hwnd, nullptr, g.hInst, nullptr);
     r.bRestore = CreatePsqcButton(r.hwnd, 501, STR_BTN_RESTORE_SEL, GLYPH_CHECK, BK_Accent);
@@ -277,6 +278,7 @@ void SettingsShow() {
                              WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, 0, 0, W, H,
                              g.hwndMain, nullptr, g.hInst, nullptr);
     g.hwndSettings = d.hwnd;
+    util::SetClientSize(d.hwnd, W, H);   // W x H is the client area
     ThemeDarkTitlebar(d.hwnd, Th().dark);
 
     auto mkSec = [&](int id) { return CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFT, 0, 0, 10, 10, d.hwnd, (HMENU)(INT_PTR)id, g.hInst, nullptr); };

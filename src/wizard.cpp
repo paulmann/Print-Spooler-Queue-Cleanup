@@ -23,7 +23,7 @@ struct WZ {
     int page = 0;
     InstallOptions o;
     bool runOnceChoice = false;
-    HWND stTitle, stText, rInstall, rRunOnce;
+    HWND stTitle, stText, rInstall;
     HWND rAll, rCur, scopeNote;
     HWND eDir, bBrowse;
     HWND cDesk, cStart, cAuto, cTray;
@@ -205,13 +205,15 @@ static void ShowPage(int p) {
     w.page = p;
     auto Show = [](HWND h, bool v) { ShowWindow(h, v ? SW_SHOW : SW_HIDE); };
     Show(w.rInstall, p == 0); Show(w.bRunOnce, p == 0);
+    Show(w.stText, p == 0 || p == 4);   // pages 1-3 reuse the title string as body text
+
     Show(w.rAll, p == 1); Show(w.rCur, p == 1); Show(w.scopeNote, p == 1);
     Show(w.eDir, p == 2); Show(w.bBrowse, p == 2);
     Show(w.cDesk, p == 3); Show(w.cStart, p == 3); Show(w.cAuto, p == 3); Show(w.cTray, p == 3);
     Show(w.status, p == 4);
     Show(w.bBack, p > 0 && p < 4);
     Show(w.bCancel, true);
-    EnableWindow(w.bNext, p < 4);
+    EnableWindow(w.bNext, TRUE);   // page 4 = Finish, it must stay enabled
     CtrlSetStrId(w.bNext, p == 4 ? STR_WIZ_LAUNCH : STR_WIZ_NEXT);
     if (p == 4) SetWindowTextW(w.status, w.o.dir.c_str());
     std::wstring title;
@@ -277,6 +279,11 @@ static LRESULT CALLBACK WizardProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_ERASEBKGND: { RECT rc{}; GetClientRect(hwnd, &rc); FillRect((HDC)wp, &rc, Th().brBg); return 1; }
         case WM_CTLCOLORSTATIC: case WM_CTLCOLORBTN:
             return (LRESULT)ThemeCtlColorBg((HDC)wp);
+        case WM_DRAWITEM:
+            // Without this the wizard's owner-draw buttons (Run once / Back / Next /
+            // Cancel) are never painted: BS_OWNERDRAW parents must draw them here.
+            if (CtrlHandleDrawItem((DRAWITEMSTRUCT*)lp)) return TRUE;
+            return 0;
         case WM_PAINT: {
             PAINTSTRUCT ps{};
             HDC hdc = BeginPaint(hwnd, &ps);
@@ -349,7 +356,7 @@ WizardResult WizardRun() {
     OutputDebugStringA("PSQC: wiz register");
 #endif
 
-    int dpi = 96;
+    int dpi = util::DpiOf(nullptr);
     int W = MulDiv(560, dpi, 96), H = MulDiv(430, dpi, 96);
     w = WZ{};
     w.o.dir = DefaultInstallDir(0);
@@ -357,6 +364,7 @@ WizardResult WizardRun() {
                              WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, 0, 0, W, H,
                              nullptr, nullptr, g.hInst, nullptr);
     g.hwndWizard = w.hwnd;
+    util::SetClientSize(w.hwnd, W, H);   // W x H is the client area, not the frame
 #ifdef PSQC_QA_DELAY
     OutputDebugStringA("PSQC: wiz top created"); Sleep(900);
 #endif
@@ -366,20 +374,19 @@ WizardResult WizardRun() {
     auto mk = [&](int id, const wchar_t* cls, DWORD style, const wchar_t* text) {
         return CreateWindowExW(0, cls, text, WS_CHILD | style, 0, 0, 10, 10, w.hwnd, (HMENU)(INT_PTR)id, g.hInst, nullptr);
     };
-    w.stTitle = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFT, S(72), S(20), W - S(92), S(30), w.hwnd, (HMENU)(INT_PTR)IZW_TITLE, g.hInst, nullptr);
-    w.stText = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFT, S(72), S(52), W - S(100), S(90), w.hwnd, (HMENU)(INT_PTR)IZW_TEXT, g.hInst, nullptr);
+    w.stTitle = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOPREFIX, S(72), S(20), W - S(92), S(30), w.hwnd, (HMENU)(INT_PTR)IZW_TITLE, g.hInst, nullptr);
+    w.stText = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOPREFIX, S(72), S(52), W - S(100), S(90), w.hwnd, (HMENU)(INT_PTR)IZW_TEXT, g.hInst, nullptr);
     w.rInstall = mk(IZW_R_INSTALL, L"BUTTON", WS_VISIBLE | BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP, psqc::Str(STR_WIZ_INSTALL));
-    w.rRunOnce = mk(IZW_R_RUNONCE, L"BUTTON", WS_VISIBLE | BS_AUTORADIOBUTTON, L"");
     w.rAll = mk(IZW_R_ALL, L"BUTTON", BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP, psqc::Str(STR_WIZ_SCOPE_ALL));
     w.rCur = mk(IZW_R_CUR, L"BUTTON", BS_AUTORADIOBUTTON | WS_TABSTOP, psqc::Str(STR_WIZ_SCOPE_CUR));
-    w.scopeNote = mk(IZW_SCOPE_NOTE, L"STATIC", SS_LEFT, psqc::Str(STR_WIZ_SCOPE_NOTE));
+    w.scopeNote = mk(IZW_SCOPE_NOTE, L"STATIC", SS_LEFT | SS_NOPREFIX, psqc::Str(STR_WIZ_SCOPE_NOTE));
     w.eDir = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", w.o.dir.c_str(), WS_CHILD | ES_AUTOHSCROLL | WS_TABSTOP, 0, 0, 10, 10, w.hwnd, (HMENU)(INT_PTR)IZW_EDIT_DIR, g.hInst, nullptr);
     w.bBrowse = CreatePsqcButton(w.hwnd, IZW_BROWSE, STR_WIZ_BROWSE, GLYPH_FOLDER, BK_Standard);
     w.cDesk = mk(IZW_C_DESK, L"BUTTON", BS_AUTOCHECKBOX | WS_TABSTOP, psqc::Str(STR_WIZ_OPT_DESKTOP));
     w.cStart = mk(IZW_C_START, L"BUTTON", BS_AUTOCHECKBOX | WS_TABSTOP, psqc::Str(STR_WIZ_OPT_STARTMENU));
     w.cAuto = mk(IZW_C_AUTO, L"BUTTON", BS_AUTOCHECKBOX | WS_TABSTOP, psqc::Str(STR_WIZ_OPT_AUTOSTART));
     w.cTray = mk(IZW_C_TRAY, L"BUTTON", BS_AUTOCHECKBOX | WS_TABSTOP, psqc::Str(STR_WIZ_OPT_TRAY));
-    w.status = mk(IZW_STATUS, L"STATIC", SS_LEFT, L"");
+    w.status = mk(IZW_STATUS, L"STATIC", SS_LEFT | SS_NOPREFIX, L"");
     w.bBack = CreatePsqcButton(w.hwnd, IZW_BACK, STR_WIZ_BACK, GLYPH_BACK, BK_Standard);
     w.bNext = CreatePsqcButton(w.hwnd, IZW_NEXT, STR_WIZ_NEXT, 0, BK_Accent);
     w.bCancel = CreatePsqcButton(w.hwnd, IZW_CANCEL, STR_WIZ_CANCEL, 0, BK_Subtle);
@@ -387,7 +394,7 @@ WizardResult WizardRun() {
 
     SendMessageW(w.stTitle, WM_SETFONT, (WPARAM)Th().fontBig, TRUE);
     SendMessageW(w.stText, WM_SETFONT, (WPARAM)Th().font, TRUE);
-    for (HWND h : { w.rInstall, w.rRunOnce, w.rAll, w.rCur, w.scopeNote, w.eDir, w.cDesk, w.cStart, w.cAuto, w.cTray, w.status })
+    for (HWND h : { w.rInstall, w.rAll, w.rCur, w.scopeNote, w.eDir, w.cDesk, w.cStart, w.cAuto, w.cTray, w.status })
         SendMessageW(h, WM_SETFONT, (WPARAM)Th().font, TRUE);
     OutputDebugStringA("PSQC: wiz children done");
     SendMessageW(w.rInstall, BM_SETCHECK, BST_CHECKED, 0);
@@ -431,11 +438,16 @@ WizardResult WizardRun() {
     }
 
     MSG msg;
-    while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
+    // The window check must gate EVERY iteration, not run after DispatchMessageW:
+    // a mouse click is delivered through IsDialogMessageW, which runs the wizard command,
+    // destroys the window inside the handler and still reports the message as handled.
+    // With the check at the bottom only, that 'continue' skipped it and the loop waited in
+    // GetMessageW forever - the process stayed alive, windowless, holding the single-instance
+    // mutex, so every later start exited silently (measured on Windows 11).
+    while (IsWindow(w.hwnd) && GetMessageW(&msg, nullptr, 0, 0) > 0) {
         if (IsDialogMessageW(w.hwnd, &msg)) continue;
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
-        if (!IsWindow(w.hwnd)) break;
     }
     g.hwndWizard = nullptr;
     return w.result;

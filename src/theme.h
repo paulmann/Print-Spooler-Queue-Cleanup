@@ -53,7 +53,7 @@ void ThemeDarkControls(HWND hwnd, bool dark);   // uxtheme immersive dark for co
 #define GLYPH_FOLDER       0xE8B7
 #define GLYPH_CHECK        0xE73E
 #define GLYPH_CHEVRON      0xE70D
-#define GLYPH_SUN          0xE946
+#define GLYPH_SUN          0xE706   // sun (U+E946 is Info); monoline in both icon fonts
 #define GLYPH_MOON         0xE708
 #define GLYPH_WARNING      0xE7BA
 #define GLYPH_SHIELD       0xE7EF

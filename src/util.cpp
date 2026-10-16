@@ -543,6 +543,16 @@ RECT WorkAreaRect() {
     return r;
 }
 
+void SetClientSize(HWND hwnd, int cx, int cy) {
+    if (!hwnd) return;
+    RECT rc{ 0, 0, cx, cy };
+    DWORD style = (DWORD)(LONG_PTR)GetWindowLongPtrW(hwnd, GWL_STYLE);
+    DWORD exStyle = (DWORD)(LONG_PTR)GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+    if (!AdjustWindowRectEx(&rc, style, FALSE, exStyle)) return;
+    SetWindowPos(hwnd, nullptr, 0, 0, rc.right - rc.left, rc.bottom - rc.top,
+                 SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
 void CenterWindow(HWND hwnd, HWND owner) {
     RECT rc{};
     GetWindowRect(hwnd, &rc);

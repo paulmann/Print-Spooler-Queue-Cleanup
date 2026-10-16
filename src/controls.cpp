@@ -48,17 +48,21 @@ static LRESULT CALLBACK CtrlSubclass(HWND h, UINT msg, WPARAM wp, LPARAM lp, UIN
             }
             break;
         case WM_MOUSELEAVE:
-            if (d && d->hot) { d->hot = false; InvalidateRect(h, nullptr, FALSE); }
+            if (d && (d->hot || d->pressed)) { d->hot = false; d->pressed = false; InvalidateRect(h, nullptr, FALSE); }
             break;
         case WM_LBUTTONDOWN:
-            if (d) { d->pressed = true; SetCapture(h); InvalidateRect(h, nullptr, FALSE); }
+            // Visual state only: do NOT call SetCapture here. The BUTTON class keeps its own
+            // capture state and clears it on WM_CAPTURECHANGED, so a capture change in between
+            // makes comctl32 drop the click and no BN_CLICKED ever reaches the parent
+            // (measured on Windows 11: every custom Psqc button was dead to the mouse).
+            if (d) { d->pressed = true; InvalidateRect(h, nullptr, FALSE); }
             break;
         case WM_LBUTTONUP:
-            if (d && d->pressed) {
-                d->pressed = false;
-                ReleaseCapture();
-                InvalidateRect(h, nullptr, FALSE);
-            }
+            if (d && d->pressed) { d->pressed = false; InvalidateRect(h, nullptr, FALSE); }
+            break;
+        case WM_CAPTURECHANGED:
+            // the button finished or cancelled the click: drop the pressed look
+            if (d && d->pressed) { d->pressed = false; InvalidateRect(h, nullptr, FALSE); }
             break;
         case WM_SETFOCUS:
             if (d) { d->focused = true; InvalidateRect(h, nullptr, FALSE); }

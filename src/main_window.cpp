@@ -660,7 +660,7 @@ void MainWindowCreate(HINSTANCE hInst, int showCmd) {
     wc.lpszClassName = PSQC_WINDOW_CLASS;
     RegisterClassExW(&wc);
 
-    int dpi = 96;
+    int dpi = util::DpiOf(nullptr);
     int w = MulDiv(900, dpi, 96), h = MulDiv(620, dpi, 96);
     RECT wa = util::WorkAreaRect();
     int x = S().winX >= 0 ? S().winX : wa.left + ((wa.right - wa.left) - w) / 2;
@@ -676,6 +676,7 @@ void MainWindowCreate(HINSTANCE hInst, int showCmd) {
 #endif
     dpi = util::DpiOf(m.hwnd);
     ThemeRefreshDpi(dpi);
+    util::SetClientSize(m.hwnd, w, h);   // w x h is the client area, not the frame
 
     auto mk = [&](int id) { return GetDlgItem(m.hwnd, id); };
     m.list = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTVIEWW, L"",

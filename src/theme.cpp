@@ -50,6 +50,31 @@ bool ThemeIsDarkEffective() {
 
 int ThemeModeNow() { return g_mode; }
 
+// Icon fonts: Windows 11 moved the full icon set to "Segoe Fluent Icons" and keeps
+// "Segoe MDL2 Assets" as a reduced compatibility font (measured on build 26200: U+E8B7
+// "Folder" is an empty box there, while Fluent Icons draws the folder; every other glyph
+// this app uses is identical in both). Prefer Fluent, fall back to MDL2 on Windows 10.
+static bool FontFaceInstalled(const wchar_t* face) {
+    HDC dc = GetDC(nullptr);
+    HFONT f = CreateFontW(-12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+                          OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
+                          DEFAULT_PITCH | FF_SWISS, face);
+    HGDIOBJ old = SelectObject(dc, f);
+    wchar_t actual[LF_FACESIZE]{};
+    GetTextFaceW(dc, LF_FACESIZE, actual);   // a missing face is silently substituted
+    SelectObject(dc, old);
+    DeleteObject(f);
+    ReleaseDC(nullptr, dc);
+    return _wcsicmp(actual, face) == 0;
+}
+
+static const wchar_t* IconFace() {
+    static const wchar_t* cached = nullptr;
+    if (!cached)
+        cached = FontFaceInstalled(L"Segoe Fluent Icons") ? L"Segoe Fluent Icons" : L"Segoe MDL2 Assets";
+    return cached;
+}
+
 static HFONT MakeFont(int dpi, int pt, bool bold, const wchar_t* face) {
     // Segoe UI Variable exists on Windows 11 only; fall back to Segoe UI on Windows 10.
     if (wcscmp(face, L"Segoe UI Variable Text") == 0 || wcscmp(face, L"Segoe UI Variable Display") == 0) {
@@ -130,8 +155,8 @@ static void BuildPalette(Theme& t, bool dark, int dpi) {
     t.fontBold = MakeFont(dpi, 9, true, L"Segoe UI Variable Text");
     t.fontSmall = MakeFont(dpi, 8, false, L"Segoe UI Variable Text");
     t.fontBig = MakeFont(dpi, 14, true, L"Segoe UI Variable Display");
-    t.fontIcon = MakeFont(dpi, 10, false, L"Segoe MDL2 Assets");
-    t.fontIconBig = MakeFont(dpi, 16, false, L"Segoe MDL2 Assets");
+    t.fontIcon = MakeFont(dpi, 10, false, IconFace());
+    t.fontIconBig = MakeFont(dpi, 16, false, IconFace());
 }
 
 const Theme& Th() { return g_theme; }

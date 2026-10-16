@@ -80,6 +80,7 @@ bool CopyToClipboard(const std::wstring& text);
 HICON LoadAppIcon(int cx, int cy);
 std::wstring LoadStringRes(UINT id);                          // rc strings (fallback only)
 void CenterWindow(HWND hwnd, HWND owner);
+void SetClientSize(HWND hwnd, int cx, int cy);   // resize so the CLIENT area is cx x cy px
 RECT WorkAreaRect();
 
 // ---- logging ---------------------------------------------------------------
