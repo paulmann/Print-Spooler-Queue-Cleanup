@@ -114,8 +114,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
+          # No registry-url on purpose: it would write .npmrc with an empty _authToken
+          # (NODE_AUTH_TOKEN is not set), and npm could answer ENEEDAUTH before it ever
+          # looks at the OIDC token. The default registry is registry.npmjs.org anyway.
           node-version: 24          # trusted publishing needs node >= 22.14 and npm >= 11.5.1
-          registry-url: 'https://registry.npmjs.org'
       - name: Check that the tag matches npm/package.json
         run: |
           VER=${GITHUB_REF_NAME#v}
