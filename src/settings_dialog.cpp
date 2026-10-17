@@ -8,6 +8,7 @@
 #include "util.h"
 #include "tray.h"
 #include "wizard.h"
+#include "about.h"
 #include "main_window.h"
 
 namespace psqc { const wchar_t* Str(int id); }
@@ -21,19 +22,37 @@ enum SdIds : int {
     IDS_B_LOGS = 450, IDS_B_BACKUPS, IDS_B_RESTORE, IDS_B_UNINSTALL,
     IDS_NOTE = 455,
     IDS_T1 = 460, IDS_T2, IDS_T3, IDS_T4, IDS_T5, IDS_T6, IDS_T7, IDS_T8, IDS_T9,
+    IDS_L_FONT = 470, IDS_L_SIZE,
+    IDS_C_FONT = 472, IDS_C_SIZE,
 };
 
 struct SD {
     HWND hwnd = nullptr;
     HWND secApp, secBeh, secLog, secData;
-    HWND lTheme, lLang, lLog, lRefresh;
-    HWND cTheme, cLang, cLog, eRefresh;
+    HWND lTheme, lLang, lLog, lRefresh, lFont, lSize;
+    HWND cTheme, cLang, cLog, eRefresh, cFont, cSize;
     HWND tTray, tMinTray, tStartMin, tNotify, tConfirm, tAutoUpd, tElev, tBackup, tAutoStart;
     HWND bLogs, bBackups, bRestore, bUninstall;
     HWND note;
     HWND tl[9] = {};
 };
 static SD d;
+
+// Список семейств, фактически попавших в комбобокс шрифта (только установленные).
+static std::vector<std::wstring> g_sdFaces;
+static bool FaceInstalled(const wchar_t* face) {
+    HDC dc = GetDC(nullptr);
+    HFONT f = CreateFontW(-12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+                          OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
+                          DEFAULT_PITCH | FF_SWISS, face);
+    HGDIOBJ old = SelectObject(dc, f);
+    wchar_t actual[LF_FACESIZE]{};
+    GetTextFaceW(dc, LF_FACESIZE, actual);
+    SelectObject(dc, old);
+    DeleteObject(f);
+    ReleaseDC(nullptr, dc);
+    return _wcsicmp(actual, face) == 0;
+}
 
 static void FillCombos() {
     SendMessageW(d.cTheme, CB_RESETCONTENT, 0, 0);
@@ -54,6 +73,30 @@ static void FillCombos() {
     SendMessageW(d.cLog, CB_ADDSTRING, 0, (LPARAM)psqc::Str(STR_LOG_ERRORS));
     SendMessageW(d.cLog, CB_ADDSTRING, 0, (LPARAM)psqc::Str(STR_LOG_ALL));
     SendMessageW(d.cLog, CB_SETCURSEL, S().logLevel, 0);
+    SendMessageW(d.cFont, CB_RESETCONTENT, 0, 0);
+    g_sdFaces.clear();
+    const wchar_t* cand[] = { L"Segoe UI", L"Segoe UI Variable Text", L"Inter", L"Arial",
+                              L"Calibri", L"Tahoma", L"Verdana", L"Trebuchet MS" };
+    std::wstring want = S().fontFace.empty() ? std::wstring(L"Segoe UI") : S().fontFace;
+    int selFont = 0;
+    for (const wchar_t* f : cand) {
+        if (!FaceInstalled(f)) continue;
+        int idx = (int)g_sdFaces.size();
+        g_sdFaces.push_back(f);
+        SendMessageW(d.cFont, CB_ADDSTRING, 0, (LPARAM)f);
+        if (_wcsicmp(f, want.c_str()) == 0) selFont = idx;
+    }
+    SendMessageW(d.cFont, CB_SETCURSEL, selFont, 0);
+    SendMessageW(d.cSize, CB_RESETCONTENT, 0, 0);
+    const int sizes[] = { 8, 9, 10, 11, 12 };
+    int selSize = 2;
+    for (int i = 0; i < 5; ++i) {
+        wchar_t b[8]{};
+        _itow_s(sizes[i], b, 10);
+        SendMessageW(d.cSize, CB_ADDSTRING, 0, (LPARAM)b);
+        if (sizes[i] == S().fontSize) selSize = i;
+    }
+    SendMessageW(d.cSize, CB_SETCURSEL, selSize, 0);
 }
 
 static void ApplyTexts() {
@@ -66,6 +109,8 @@ static void ApplyTexts() {
     SetWindowTextW(d.lLang, psqc::Str(STR_SET_LANGUAGE));
     SetWindowTextW(d.lLog, psqc::Str(STR_SET_LOGGING));
     SetWindowTextW(d.lRefresh, psqc::Str(STR_SET_REFRESH));
+    SetWindowTextW(d.lFont, psqc::Str(STR_SET_FONT));
+    SetWindowTextW(d.lSize, psqc::Str(STR_SET_FONTSIZE));
     CtrlSetStrId(d.bLogs, STR_BTN_OPEN_LOGS);
     CtrlSetStrId(d.bBackups, STR_BTN_OPEN_BACKUPS);
     CtrlSetStrId(d.bRestore, STR_BTN_RESTORE);
@@ -81,11 +126,14 @@ static void ApplyTexts() {
     CtrlRelabelAll();
 }
 
+static void ApplyDlgFonts();   // определение ниже, рядом с SettingsProc
+
 void SettingsReskin() {
     if (!d.hwnd) return;
     ThemeDarkTitlebar(d.hwnd, Th().dark);
     ThemeDarkControls(d.hwnd, Th().dark);
     ApplyTexts();
+    ApplyDlgFonts();
     InvalidateRect(d.hwnd, nullptr, TRUE);
 }
 
@@ -132,12 +180,13 @@ static LRESULT CALLBACK RestoreProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             return 0;
         }
         case WM_CLOSE: DestroyWindow(hwnd); return 0;
+        case WM_DESTROY: r.hwnd = nullptr; return 0;   // иначе диалог мёртв после первого закрытия
     }
     return DefWindowProcW(hwnd, msg, wp, lp);
 }
 
 static void RestoreShow() {
-    if (r.hwnd) { SetForegroundWindow(r.hwnd); return; }
+    if (r.hwnd && IsWindow(r.hwnd)) { SetForegroundWindow(r.hwnd); return; }
     WNDCLASSEXW wc{};
     wc.cbSize = sizeof(wc);
     wc.lpfnWndProc = RestoreProc;
@@ -172,11 +221,27 @@ static void RestoreShow() {
 }
 
 // ---- settings dialog --------------------------------------------------------------
+static void ApplyDlgFonts() {
+    if (!d.hwnd) return;
+    for (HWND h : { d.secApp, d.secBeh, d.secLog, d.secData })
+        SendMessageW(h, WM_SETFONT, (WPARAM)Th().fontBold, TRUE);
+    HWND fonted[] = { d.lTheme, d.lLang, d.lLog, d.lRefresh, d.lFont, d.lSize, d.note,
+                      d.cTheme, d.cLang, d.cLog, d.cFont, d.cSize, d.eRefresh,
+                      d.tTray, d.tMinTray, d.tStartMin, d.tNotify, d.tConfirm, d.tAutoUpd, d.tElev, d.tBackup, d.tAutoStart,
+                      d.tl[0], d.tl[1], d.tl[2], d.tl[3], d.tl[4], d.tl[5], d.tl[6], d.tl[7], d.tl[8] };
+    for (HWND h : fonted) SendMessageW(h, WM_SETFONT, (WPARAM)Th().font, TRUE);
+}
+
 static LRESULT CALLBACK SettingsProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
         case WM_ERASEBKGND: { RECT rc{}; GetClientRect(hwnd, &rc); FillRect((HDC)wp, &rc, Th().brBg); return 1; }
         case WM_CTLCOLORSTATIC:
             return (LRESULT)ThemeCtlColorBg((HDC)wp);
+        case WM_CTLCOLOREDIT:
+            // «Автообновление списка»: в тёмной теме текст был чёрным на чёрном.
+            SetBkColor((HDC)wp, Th().surface2);
+            SetTextColor((HDC)wp, Th().text);
+            return (LRESULT)Th().brSurface2;
         case WM_DRAWITEM:
             if (CtrlHandleDrawItem((DRAWITEMSTRUCT*)lp)) return TRUE;
             return 0;
@@ -238,6 +303,29 @@ static LRESULT CALLBACK SettingsProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
                     if (sel >= 0 && sel <= 2) { S().logLevel = sel; SettingsSave(); util::SetLogLevel(sel); }
                     return 0;
                 }
+                if ((HWND)lp == d.cFont) {
+                    int sel = (int)SendMessageW(d.cFont, CB_GETCURSEL, 0, 0);
+                    if (sel >= 0 && sel < (int)g_sdFaces.size()) {
+                        S().fontFace = g_sdFaces[sel];
+                        SettingsSave();
+                        ThemeSetMode(S().themeMode);   // пересборка шрифтов темы
+                        MainWindowReskin(); TrayReskin(); SettingsReskin();
+                        if (g.hwndAbout) AboutReskin();
+                    }
+                    return 0;
+                }
+                if ((HWND)lp == d.cSize) {
+                    int sel = (int)SendMessageW(d.cSize, CB_GETCURSEL, 0, 0);
+                    const int sizes[] = { 8, 9, 10, 11, 12 };
+                    if (sel >= 0 && sel < 5) {
+                        S().fontSize = sizes[sel];
+                        SettingsSave();
+                        ThemeSetMode(S().themeMode);
+                        MainWindowReskin(); TrayReskin(); SettingsReskin();
+                        if (g.hwndAbout) AboutReskin();
+                    }
+                    return 0;
+                }
             }
             if (code == EN_CHANGE && (HWND)lp == d.eRefresh) {
                 wchar_t buf[8]{};
@@ -272,7 +360,7 @@ void SettingsShow() {
     RegisterClassExW(&wc);
     int dpi = util::DpiOf(g.hwndMain);
     auto Sc = [&](int v) { return MulDiv(v, dpi, 96); };
-    int W = Sc(520), H = Sc(640);
+    int W = Sc(520), H = Sc(710);
     d = SD{};
     d.hwnd = CreateWindowExW(0, PSQC_DIALOG_CLASS, psqc::Str(STR_DL_SETTINGS),
                              WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, 0, 0, W, H,
@@ -288,6 +376,10 @@ void SettingsShow() {
     d.cLang = CreateWindowExW(0, L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_TABSTOP | WS_VSCROLL, 0, 0, 10, 10, d.hwnd, (HMENU)(INT_PTR)IDS_C_LANG, g.hInst, nullptr);
     d.cLog = CreateWindowExW(0, L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_TABSTOP, 0, 0, 10, 10, d.hwnd, (HMENU)(INT_PTR)IDS_C_LOG, g.hInst, nullptr);
     d.eRefresh = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_NUMBER | WS_TABSTOP, 0, 0, 10, 10, d.hwnd, (HMENU)(INT_PTR)IDS_E_REFRESH, g.hInst, nullptr);
+    d.cFont = CreateWindowExW(0, L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_TABSTOP, 0, 0, 10, 10, d.hwnd, (HMENU)(INT_PTR)IDS_C_FONT, g.hInst, nullptr);
+    d.cSize = CreateWindowExW(0, L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_TABSTOP, 0, 0, 10, 10, d.hwnd, (HMENU)(INT_PTR)IDS_C_SIZE, g.hInst, nullptr);
+    d.lFont = mkSec(IDS_L_FONT);
+    d.lSize = mkSec(IDS_L_SIZE);
     d.tTray = CreatePsqcToggle(d.hwnd, IDS_T1, -1, S().trayIcon);
     d.tMinTray = CreatePsqcToggle(d.hwnd, IDS_T2, -1, S().minimizeToTray);
     d.tStartMin = CreatePsqcToggle(d.hwnd, IDS_T3, -1, S().startMinimized);
@@ -305,16 +397,7 @@ void SettingsShow() {
     for (int i = 0; i < 9; ++i)
         d.tl[i] = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFT, 0, 0, 10, 10, d.hwnd, (HMENU)(INT_PTR)(IDS_T_TRAY + i), g.hInst, nullptr);
 
-    SendMessageW(d.secApp, WM_SETFONT, (WPARAM)Th().fontBold, TRUE);
-    SendMessageW(d.secBeh, WM_SETFONT, (WPARAM)Th().fontBold, TRUE);
-    SendMessageW(d.secLog, WM_SETFONT, (WPARAM)Th().fontBold, TRUE);
-    SendMessageW(d.secData, WM_SETFONT, (WPARAM)Th().fontBold, TRUE);
-    {
-        HWND fonted[] = { d.lTheme, d.lLang, d.lLog, d.lRefresh, d.note, d.cTheme, d.cLang, d.cLog, d.eRefresh,
-                          d.tTray, d.tMinTray, d.tStartMin, d.tNotify, d.tConfirm, d.tAutoUpd, d.tElev, d.tBackup, d.tAutoStart,
-                          d.tl[0], d.tl[1], d.tl[2], d.tl[3], d.tl[4], d.tl[5], d.tl[6], d.tl[7], d.tl[8] };
-        for (HWND h : fonted) SendMessageW(h, WM_SETFONT, (WPARAM)Th().font, TRUE);
-    }
+    ApplyDlgFonts();
 
     ApplyTexts();
     ThemeDarkControls(d.hwnd, Th().dark);
@@ -327,6 +410,11 @@ void SettingsShow() {
     SetWindowPos(d.lLang, nullptr, x + Sc(250), y + Sc(4), Sc(60), Sc(20), SWP_NOZORDER);
     SetWindowPos(d.cLang, nullptr, x + Sc(314), y, Sc(160), Sc(200), SWP_NOZORDER);
     y += Sc(32);
+    SetWindowPos(d.lFont, nullptr, x, y + Sc(4), Sc(90), Sc(20), SWP_NOZORDER);
+    SetWindowPos(d.cFont, nullptr, x + Sc(94), y, Sc(200), Sc(24), SWP_NOZORDER);
+    SetWindowPos(d.lSize, nullptr, x + Sc(306), y + Sc(4), Sc(110), Sc(20), SWP_NOZORDER);
+    SetWindowPos(d.cSize, nullptr, x + Sc(420), y, Sc(54), Sc(24), SWP_NOZORDER);
+    y += Sc(32);
     SetWindowPos(d.secBeh, nullptr, x, y, W - 2 * x, Sc(20), SWP_NOZORDER); y += Sc(24);
     HWND tgl[9] = { d.tTray, d.tMinTray, d.tStartMin, d.tNotify, d.tConfirm, d.tAutoUpd, d.tElev, d.tBackup, d.tAutoStart };
     int yy = y;
@@ -337,17 +425,47 @@ void SettingsShow() {
     }
     y = yy + Sc(6);
     SetWindowPos(d.secLog, nullptr, x, y, W - 2 * x, Sc(20), SWP_NOZORDER); y += Sc(24);
-    SetWindowPos(d.lLog, nullptr, x, y + Sc(4), Sc(90), Sc(20), SWP_NOZORDER);
-    SetWindowPos(d.cLog, nullptr, x + Sc(94), y, Sc(140), Sc(24), SWP_NOZORDER);
-    SetWindowPos(d.lRefresh, nullptr, x + Sc(250), y + Sc(4), Sc(180), Sc(20), SWP_NOZORDER);
-    SetWindowPos(d.eRefresh, nullptr, x + Sc(434), y, Sc(40), Sc(24), SWP_NOZORDER);
+    auto TextCx = [&](const wchar_t* s) {
+        HDC dc = GetDC(d.hwnd);
+        HFONT of = (HFONT)SelectObject(dc, Th().font);
+        SIZE ts{};
+        GetTextExtentPoint32W(dc, s, (int)wcslen(s), &ts);
+        SelectObject(dc, of);
+        ReleaseDC(d.hwnd, dc);
+        return ts.cx;
+    };
+    int wLog = TextCx(psqc::Str(STR_SET_LOGGING)) + Sc(10);
+    SetWindowPos(d.lLog, nullptr, x, y + Sc(4), wLog, Sc(20), SWP_NOZORDER);
+    SetWindowPos(d.cLog, nullptr, x + wLog + Sc(8), y, Sc(140), Sc(24), SWP_NOZORDER);
+    y += Sc(34);
+    int wRef = TextCx(psqc::Str(STR_SET_REFRESH)) + Sc(8);
+    SetWindowPos(d.lRefresh, nullptr, x, y + Sc(4), wRef, Sc(20), SWP_NOZORDER);
+    SetWindowPos(d.eRefresh, nullptr, x + wRef + Sc(8), y, Sc(60), Sc(24), SWP_NOZORDER);
     y += Sc(34);
     SetWindowPos(d.secData, nullptr, x, y, W - 2 * x, Sc(20), SWP_NOZORDER); y += Sc(26);
-    SetWindowPos(d.bLogs, nullptr, x, y, Sc(170), Sc(32), SWP_NOZORDER);
-    SetWindowPos(d.bBackups, nullptr, x + Sc(178), y, Sc(170), Sc(32), SWP_NOZORDER);
+    // Кнопки данных — по ширине своего текста, «потоком» в две строки.
+    {
+        HDC dc = GetDC(d.hwnd);
+        CtrlResizeToContent(d.bLogs, dc);
+        CtrlResizeToContent(d.bBackups, dc);
+        CtrlResizeToContent(d.bRestore, dc);
+        CtrlResizeToContent(d.bUninstall, dc);
+        ReleaseDC(d.hwnd, dc);
+    }
+    RECT br{};
+    auto Bw = [&](HWND h) { GetWindowRect(h, &br); return br.right - br.left; };
+    int wLogs = Bw(d.bLogs), wBack = Bw(d.bBackups), wRest = Bw(d.bRestore), wUnin = Bw(d.bUninstall);
+    SetWindowPos(d.bLogs, nullptr, x, y, wLogs, Sc(32), SWP_NOZORDER);
+    if (x + wLogs + Sc(8) + wBack <= W - x)
+        SetWindowPos(d.bBackups, nullptr, x + wLogs + Sc(8), y, wBack, Sc(32), SWP_NOZORDER);
+    else
+        SetWindowPos(d.bBackups, nullptr, x, y + Sc(40), wBack, Sc(32), SWP_NOZORDER);
     y += Sc(40);
-    SetWindowPos(d.bRestore, nullptr, x, y, Sc(170), Sc(32), SWP_NOZORDER);
-    SetWindowPos(d.bUninstall, nullptr, x + Sc(178), y, Sc(170), Sc(32), SWP_NOZORDER);
+    SetWindowPos(d.bRestore, nullptr, x, y, wRest, Sc(32), SWP_NOZORDER);
+    if (x + wRest + Sc(8) + wUnin <= W - x)
+        SetWindowPos(d.bUninstall, nullptr, x + wRest + Sc(8), y, wUnin, Sc(32), SWP_NOZORDER);
+    else
+        SetWindowPos(d.bUninstall, nullptr, x, y + Sc(40), wUnin, Sc(32), SWP_NOZORDER);
     y += Sc(42);
     SetWindowPos(d.note, nullptr, x, y, W - 2 * x, Sc(18), SWP_NOZORDER);
 
@@ -359,5 +477,6 @@ void SettingsShow() {
     Sleep(700);
 #endif
     util::QaShot(d.hwnd, L"settings");
-    RestoreShow();
+    if (GetEnvironmentVariableW(L"PSQC_SHOTDIR", nullptr, 0) != 0)
+        RestoreShow();   // QA: снять и диалог восстановления (раньше открывался всегда)
 }

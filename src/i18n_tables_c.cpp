@@ -37,8 +37,9 @@ const wchar_t* const kStr_ro[STR_COUNT] = {
 /*124-127*/ L"OK", L"Anulează", L"Reîncearcă ca administrator", L"Mai târziu",
 /*128-131*/ L"Eliminați %s de pe acest computer? Scurtăturile, intrarea de autostart și fișierele programului vor fi șterse. Setările se păstrează.", L"Dezinstalat. Copia în execuție se va închide după OK.", L"Mod portabil", L"Română",
 /*132-135*/ L"Se verifică actualizările…", L"Se descarcă actualizarea… %s%%", L"Se aplică actualizarea…", L"Site web",
-/*136-139*/ L"Cod sursă (GitHub)", L"Licență: PolyForm Noncommercial 1.0.0", L"Bază de cunoștințe (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"Licență: PolyForm Noncommercial 1.0.0", L"Bază de cunoștințe (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"Mod portabil: setările sunt stocate lângă executabil.", L"Nicio lucrare selectată.", L"Coada de tipărire a fost golită", L"Actualizarea %s este disponibilă", L"Instalarea pentru toți utilizatorii necesită drepturi de administrator.",
+/*145-146*/ L"Font", L"Dimensiune font",
 };
 
 const wchar_t* const kStr_cs[STR_COUNT] = {
@@ -76,8 +77,9 @@ const wchar_t* const kStr_cs[STR_COUNT] = {
 /*124-127*/ L"OK", L"Storno", L"Zopakovat jako administrátor", L"Později",
 /*128-131*/ L"Odebrat %s z tohoto počítače? Budou odstraněny zástupci, položka automatického spuštění a soubory programu. Nastavení zůstanou.", L"Odinstalováno. Běžící kopie se po OK zavře.", L"Přenosný režim", L"Čeština",
 /*132-135*/ L"Kontrola aktualizací…", L"Stahování aktualizace… %s%%", L"Použití aktualizace…", L"Web",
-/*136-139*/ L"Zdrojový kód (GitHub)", L"Licence: PolyForm Noncommercial 1.0.0", L"Báze znalostí (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"Licence: PolyForm Noncommercial 1.0.0", L"Báze znalostí (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"Přenosný režim: nastavení se ukládají vedle spustitelného souboru.", L"Nejsou vybrány žádné úlohy.", L"Tisková fronta vyčištěna", L"Je dostupná aktualizace %s", L"Instalace pro všechny uživatele vyžaduje práva administrátora.",
+/*145-146*/ L"Písmo", L"Velikost písma",
 };
 
 const wchar_t* const kStr_sv[STR_COUNT] = {
@@ -115,8 +117,9 @@ const wchar_t* const kStr_sv[STR_COUNT] = {
 /*124-127*/ L"OK", L"Avbryt", L"Försök igen som administratör", L"Senare",
 /*128-131*/ L"Ta bort %s från den här datorn? Genvägar, autostartpost och programfiler tas bort. Inställningar behålls.", L"Avinstallerad. Den körande kopian stängs efter OK.", L"Portabelt läge", L"Svenska",
 /*132-135*/ L"Söker efter uppdateringar…", L"Hämtar uppdatering… %s%%", L"Tillämpar uppdatering…", L"Webbplats",
-/*136-139*/ L"Källkod (GitHub)", L"Licens: PolyForm Noncommercial 1.0.0", L"Kunskapsbas (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"Licens: PolyForm Noncommercial 1.0.0", L"Kunskapsbas (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"Portabelt läge: inställningar lagras bredvid den körbara filen.", L"Inga jobb markerade.", L"Utskriftskön rensad", L"Uppdatering %s tillgänglig", L"Installation för alla användare kräver administratörsrättigheter.",
+/*145-146*/ L"Typsnitt", L"Textstorlek",
 };
 
 const wchar_t* const kStr_hu[STR_COUNT] = {
@@ -154,8 +157,9 @@ const wchar_t* const kStr_hu[STR_COUNT] = {
 /*124-127*/ L"OK", L"Mégse", L"Újra rendszergazdaként", L"Később",
 /*128-131*/ L"Eltávolítja a(z) %s alkalmazást erről a gépről? A parancsikonok, az automatikus indítási bejegyzés és a programfájlok törlődnek. A beállítások megmaradnak.", L"Eltávolítva. A futó példány az OK után bezárul.", L"Hordozható mód", L"Magyar",
 /*132-135*/ L"Frissítések ellenőrzése…", L"Frissítés letöltése… %s%%", L"Frissítés alkalmazása…", L"Webhely",
-/*136-139*/ L"Forráskód (GitHub)", L"Licenc: PolyForm Noncommercial 1.0.0", L"Tudásbázis (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"Licenc: PolyForm Noncommercial 1.0.0", L"Tudásbázis (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"Hordozható mód: a beállítások az exe mellett tárolódnak.", L"Nincs kijelölt feladat.", L"Nyomtatási sor kiürítve", L"Elérhető frissítés: %s", L"Az összes felhasználónak történő telepítéshez rendszergazdai jog kell.",
+/*145-146*/ L"Betűtípus", L"Betűméret",
 };
 
 const wchar_t* const kStr_el[STR_COUNT] = {
@@ -193,8 +197,9 @@ const wchar_t* const kStr_el[STR_COUNT] = {
 /*124-127*/ L"OK", L"Άκυρο", L"Δοκιμή ξανά ως διαχειριστής", L"Αργότερα",
 /*128-131*/ L"Να αφαιρεθεί το %s από αυτόν τον υπολογιστή; Θα διαγραφούν συντομεύσεις, καταχώριση αυτόματης εκκίνησης και αρχεία προγράμματος. Οι ρυθμίσεις διατηρούνται.", L"Απεγκαταστάθηκε. Το τρέχον αντίγραφο θα κλείσει μετά το OK.", L"Φορητή λειτουργία", L"Ελληνικά",
 /*132-135*/ L"Έλεγχος ενημερώσεων…", L"Λήψη ενημέρωσης… %s%%", L"Εφαρμογή ενημέρωσης…", L"Iστοσελίδα",
-/*136-139*/ L"Πηγαίος κώδικας (GitHub)", L"Άδεια: PolyForm Noncommercial 1.0.0", L"Βάση γνώσεων (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"Άδεια: PolyForm Noncommercial 1.0.0", L"Βάση γνώσεων (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"Φορητή λειτουργία: οι ρυθμίσεις αποθηκεύονται δίπλα στο εκτελέσιμο.", L"Δεν έχουν επιλεγεί εργασίες.", L"Η ουρά εκτύπωσης καθαρίστηκε", L"Διαθέσιμη ενημέρωση %s", L"Η εγκατάσταση για όλους τους χρήστες απαιτεί δικαιώματα διαχειριστή.",
+/*145-146*/ L"Γραμματοσειρά", L"Μέγεθος γραμματοσειράς",
 };
 
 const wchar_t* const kStr_he[STR_COUNT] = {
@@ -232,8 +237,9 @@ const wchar_t* const kStr_he[STR_COUNT] = {
 /*124-127*/ L"אישור", L"ביטול", L"ניסיון חוזר כמנהל", L"מאוחר יותר",
 /*128-131*/ L"להסיר את %s ממחשב זה? קיצורי דרך, רשומת הפעלה אוטומטית וקובצי התוכנית יימחקו. ההגדרות יישמרו.", L"הוסר. העותק הפועל ייסגר לאחר אישור.", L"מצב נייד", L"עברית",
 /*132-135*/ L"בודק עדכונים…", L"מוריד עדכון… %s%%", L"מחיל עדכון…", L"אתר אינטרנט",
-/*136-139*/ L"קוד מקור (GitHub)", L"רישיון: PolyForm Noncommercial 1.0.0", L"מאגר ידע (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"רישיון: PolyForm Noncommercial 1.0.0", L"מאגר ידע (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"מצב נייד: ההגדרות נשמרות לצד קובץ ההרצה.", L"לא נבחרו משימות.", L"תור ההדפסה נוקה", L"עדכון %s זמין", L"התקנה עבור כל המשתמשים דורשת הרשאות מנהל מערכת.",
+/*145-146*/ L"גופן", L"גודל גופן",
 };
 
 const wchar_t* const kStr_fa[STR_COUNT] = {
@@ -271,8 +277,9 @@ const wchar_t* const kStr_fa[STR_COUNT] = {
 /*124-127*/ L"تأیید", L"لغو", L"تلاش مجدد به‌عنوان مدیر", L"بعداً",
 /*128-131*/ L"حذف %s از این رایانه؟ میان‌برها، مورد شروع خودکار و پرونده‌های برنامه حذف می‌شوند. تنظیمات می‌مانند.", L"حذف نصب شد. نسخه در حال اجرا پس از تأیید بسته می‌شود.", L"حالت قابل‌حمل", L"فارسی",
 /*132-135*/ L"در حال بررسی به‌روزرسانی…", L"در حال دانلود به‌روزرسانی… %s%%", L"در حال اعمال به‌روزرسانی…", L"وب‌سایت",
-/*136-139*/ L"کد منبع (GitHub)", L"پروانه: PolyForm Noncommercial 1.0.0", L"پایگاه دانش (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"پروانه: PolyForm Noncommercial 1.0.0", L"پایگاه دانش (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"حالت قابل‌حمل: تنظیمات کنار فایل اجرایی ذخیره می‌شوند.", L"کاری انتخاب نشده است.", L"صف چاپ پاک شد", L"به‌روزرسانی %s در دسترس است", L"نصب برای همه کاربران نیازمند دسترسی مدیر است.",
+/*145-146*/ L"فونت", L"اندازه فونت",
 };
 
 const wchar_t* const kStr_da[STR_COUNT] = {
@@ -310,8 +317,9 @@ const wchar_t* const kStr_da[STR_COUNT] = {
 /*124-127*/ L"OK", L"Annuller", L"Prøv igen som administrator", L"Senere",
 /*128-131*/ L"Fjern %s fra denne computer? Genveje, autostart-post og programfiler slettes. Indstillinger bevares.", L"Afinstalleret. Den kørende kopi lukker efter OK.", L"Portabel tilstand", L"Dansk",
 /*132-135*/ L"Kontrollerer for opdateringer…", L"Downloader opdatering… %s%%", L"Anvender opdatering…", L"Websted",
-/*136-139*/ L"Kildekode (GitHub)", L"Licens: PolyForm Noncommercial 1.0.0", L"Vidensbase (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"Licens: PolyForm Noncommercial 1.0.0", L"Vidensbase (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"Portabel tilstand: indstillinger gemmes ved siden af den eksekverbare fil.", L"Ingen job valgt.", L"Udskriftskø ryddet", L"Opdatering %s tilgængelig", L"Installation til alle brugere kræver administratorrettigheder.",
+/*145-146*/ L"Skrifttype", L"Skriftstørrelse",
 };
 
 const wchar_t* const kStr_fi[STR_COUNT] = {
@@ -349,8 +357,9 @@ const wchar_t* const kStr_fi[STR_COUNT] = {
 /*124-127*/ L"OK", L"Peruuta", L"Yritä uudelleen ylläpitäjänä", L"Myöhemmin",
 /*128-131*/ L"Poistetaanko %s tästä tietokoneesta? Pikakuvakkeet, automaattikäynnistys ja ohjelmatiedostot poistetaan. Asetukset säilyvät.", L"Asennus poistettu. Käynnissä oleva kopio sulkeutuu OK:n jälkeen.", L"Siirrettävä tila", L"Suomi",
 /*132-135*/ L"Tarkistetaan päivityksiä…", L"Ladataan päivitystä… %s%%", L"Otetaan päivitystä käyttöön…", L"Verkkosivusto",
-/*136-139*/ L"Lähdekoodi (GitHub)", L"Lisenssi: PolyForm Noncommercial 1.0.0", L"Tietokanta (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"Lisenssi: PolyForm Noncommercial 1.0.0", L"Tietokanta (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"Siirrettävä tila: asetukset tallennetaan suoritettavan tiedoston viereen.", L"Ei valittuja töitä.", L"Tulostusjono tyhjennetty", L"Päivitys %s saatavilla", L"Kaikille käyttäjille asentaminen vaatii järjestelmänvalvojan oikeudet.",
+/*145-146*/ L"Fontti", L"Fontin koko",
 };
 
 const wchar_t* const kStr_nb[STR_COUNT] = {
@@ -388,6 +397,7 @@ const wchar_t* const kStr_nb[STR_COUNT] = {
 /*124-127*/ L"OK", L"Avbryt", L"Prøv igjen som administrator", L"Senere",
 /*128-131*/ L"Fjerne %s fra denne datamaskinen? Snarveier, autostart-oppføring og programfiler slettes. Innstillinger beholdes.", L"Avinstallert. Den kjørende kopien lukkes etter OK.", L"Portabel modus", L"Norsk (bokmål)",
 /*132-135*/ L"Ser etter oppdateringer…", L"Laster ned oppdatering… %s%%", L"Installerer oppdatering…", L"Nettsted",
-/*136-139*/ L"Kildekode (GitHub)", L"Lisens: PolyForm Noncommercial 1.0.0", L"Kunnskapsbase (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"Lisens: PolyForm Noncommercial 1.0.0", L"Kunnskapsbase (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"Portabel modus: innstillinger lagres ved siden av exe-filen.", L"Ingen jobber valgt.", L"Utskriftskøen tømt", L"Oppdatering %s tilgjengelig", L"Installasjon for alle brukere krever administratorrettigheter.",
+/*145-146*/ L"Skrift", L"Skriftstørrelse",
 };

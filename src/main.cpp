@@ -158,6 +158,11 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int showCmd) {
             if (i + 3 < args.size())
                 cliCode = update::RunSelfReplace(args[i + 1], args[i + 2], args[i + 3]);
             else cliCode = 1;
+            if (cliCode == 3) {
+                MessageBoxW(nullptr,
+                    util::Fmt(psqc::Str(STR_MSG_UPDATE_FAIL), util::LastErrorText(GetLastError()).c_str()).c_str(),
+                    psqc::Str(STR_APP_TITLE), MB_ICONERROR);
+            }
             break;
         }
     }

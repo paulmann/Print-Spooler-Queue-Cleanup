@@ -6,6 +6,65 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [5.1.0] — 2026-10-17
+
+**The interface is selectable and the installer works again.** 5.0.0 shipped a Setup
+window that painted none of its buttons, ignored the mouse on every custom control and
+hung as soon as "Run once" or "Install" was activated. This release fixes all of that
+and adds a user-selectable UI font on top of a refreshed palette.
+
+### Added
+
+- **Interface font selection** — Settings → Appearance now offers a font face (only faces
+  the system really has) and a size (8–12 pt); the choice applies to every window at once
+  and is stored in `settings.json` as `fontFace` / `fontSize`.
+- **Refreshed palette** — graphite surfaces with a `#4D6BFE` accent; in the dark theme
+  borders are lighter than the background instead of darker.
+- **Themed job-list header** — the header background and its column separators are drawn
+  from the theme (subclassed header), so the list no longer shows a stock grey header.
+- **Wider default window** — 1360×620 client, so all eight toolbar buttons fit at 10 pt;
+  the job list keeps a 420 dip minimum height.
+- **Live About refresh** — an open About window picks up a theme or font change immediately
+  (`AboutReskin`).
+
+### Fixed
+
+- **Setup wizard drew no buttons at all** — the wizard had no `WM_DRAWITEM` handler while
+  every button in it is owner-drawn (`BS_OWNERDRAW`), so Run once / Back / Next / Cancel
+  were never painted.
+- **Every custom control ignored the mouse** — the control subclass called
+  `SetCapture`/`ReleaseCapture` itself; the BUTTON class drops the click when its capture
+  state changes, so `BN_CLICKED` never reached the parent (wizard, main window, settings,
+  about — every button and switch).
+- **Hung process after Run once / Install** — the wizard's message loop checked
+  `IsWindow()` only after `DispatchMessageW`, but a click is delivered through
+  `IsDialogMessageW`; the destroyed window was never noticed, the loop waited in
+  `GetMessageW` forever and kept the single-instance mutex, so later starts exited
+  silently.
+- **Clipped layout** — top-level windows were created with the frame extent the layout
+  assumed as client size: the wizard's button row and the main window's status chips and
+  last control row were cut off. All five windows now derive the frame from the client
+  area.
+- **Hard-coded 96 DPI** in the wizard and the main window despite the Per-Monitor-V2
+  manifest.
+- **`CurrentBuildNumber` was read as a DWORD** although it is `REG_SZ`, so the build was
+  always 0 and the Windows 10 fallback (Segoe UI instead of Segoe UI Variable) never
+  applied.
+- **Substituted fonts are detected** — a face GDI silently replaces now falls back to
+  Segoe UI instead of drawing some Cyrillic text as vertical bars.
+- **The last wizard page's button was disabled**, so a finished installation could only be
+  left via Cancel.
+- **Stray empty radio** in the wizard's top-left corner; **`&` swallowed** in
+  "Programs & Features"; the page title was repeated as the body text on pages 1–3.
+- **Icon glyphs** — icons now come from Segoe Fluent Icons when installed (Windows 11 keeps
+  a reduced Segoe MDL2 Assets where U+E8B7 "Folder" is an empty box, drawn as a coloured
+  square through font linking) and the theme toggle uses U+E706 (sun) instead of U+E946
+  (info).
+
+### Repository
+
+- `.ragraf/` (machine-local code index) is ignored.
+
 ## [5.0.0] — 2026-10-16
 
 **The native rewrite.** The product moves from a PowerShell script to a single

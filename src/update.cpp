@@ -147,7 +147,7 @@ bool LaunchSelfReplace(const std::wstring& downloaded, const std::wstring& targe
     SHELLEXECUTEINFOW sei{};
     sei.cbSize = sizeof(sei);
     sei.fMask = SEE_MASK_NOASYNC;
-    sei.lpVerb = L"open";
+    sei.lpVerb = L"runas";   // замена файлов в Program Files требует повышения
     sei.lpFile = downloaded.c_str();
     sei.lpParameters = params.c_str();
     sei.nShow = SW_HIDE;
@@ -167,8 +167,12 @@ int RunSelfReplace(const std::wstring& pid, const std::wstring& target, const st
     if (!moved) moved = !util::FileExists(target);
     bool ok = MoveFileExW(downloaded.c_str(), target.c_str(), MOVEFILE_REPLACE_EXISTING) != 0;
     if (!ok) {
-        // locked: schedule on reboot and try to restore original
+        // locked: откатываем старый бинарь на место — приложение не должно исчезнуть с диска
+        DWORD err = GetLastError();
+        if (moved) MoveFileExW(old.c_str(), target.c_str(), MOVEFILE_REPLACE_EXISTING);
+        // новый файл подложится при перезагрузке (операция требует прав администратора)
         MoveFileExW(downloaded.c_str(), target.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_DELAY_UNTIL_REBOOT);
+        SetLastError(err);
         return 3;
     }
     util::RemoveFile(old);

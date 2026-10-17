@@ -137,6 +137,7 @@ bool StopService(std::wstring& err) {
     if (!svc) { err = util::LastErrorText(GetLastError()); CloseServiceHandle(scm); return false; }
     SERVICE_STATUS st{};
     bool ok = ControlService(svc, SERVICE_CONTROL_STOP, &st) != 0;
+    if (!ok && GetLastError() == ERROR_SERVICE_NOT_ACTIVE) ok = true;   // уже остановлена — цель достигнута
     if (ok) ok = WaitState(svc, SERVICE_STOPPED, 0, 15000);
     if (!ok) err = util::LastErrorText(GetLastError());
     CloseServiceHandle(svc);

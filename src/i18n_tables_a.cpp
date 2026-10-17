@@ -37,8 +37,9 @@ const wchar_t* const kStr_en[STR_COUNT] = {
 /*124-127*/ L"OK", L"Cancel", L"Retry as admin", L"Later",
 /*128-131*/ L"Remove %s from this computer? Shortcuts, the autostart entry and program files will be deleted. Settings are kept.", L"Uninstalled. The running copy will close after you press OK.", L"Portable mode", L"English",
 /*132-135*/ L"Checking for updates…", L"Downloading update… %s%%", L"Applying update…", L"Website",
-/*136-139*/ L"Source code (GitHub)", L"License: PolyForm Noncommercial 1.0.0", L"Knowledge base (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"License: PolyForm Noncommercial 1.0.0", L"Knowledge base (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"Portable mode: settings are stored next to the executable.", L"No jobs selected.", L"Print queue cleared", L"Update %s is available", L"Installing for all users requires administrator rights.",
+/*145-146*/ L"Font", L"Font size",
 };
 
 const wchar_t* const kStr_ru[STR_COUNT] = {
@@ -76,8 +77,9 @@ const wchar_t* const kStr_ru[STR_COUNT] = {
 /*124-127*/ L"ОК", L"Отмена", L"Повторить от администратора", L"Позже",
 /*128-131*/ L"Удалить %s с этого компьютера? Будут удалены ярлыки, запись автозагрузки и файлы программы. Настройки сохранятся.", L"Программа удалена. Работающая копия закроется после нажатия ОК.", L"Портативный режим", L"Русский",
 /*132-135*/ L"Проверка обновлений…", L"Загрузка обновления… %s%%", L"Применение обновления…", L"Веб-сайт",
-/*136-139*/ L"Исходный код (GitHub)", L"Лицензия: PolyForm Noncommercial 1.0.0", L"База знаний (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"Лицензия: PolyForm Noncommercial 1.0.0", L"База знаний (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"Портативный режим: настройки хранятся рядом с файлом программы.", L"Задания не выбраны.", L"Очередь печати очищена", L"Доступно обновление %s", L"Установка для всех пользователей требует прав администратора.",
+/*145-146*/ L"Шрифт", L"Размер шрифта",
 };
 
 const wchar_t* const kStr_es[STR_COUNT] = {
@@ -115,8 +117,9 @@ const wchar_t* const kStr_es[STR_COUNT] = {
 /*124-127*/ L"Aceptar", L"Cancelar", L"Reintentar como administrador", L"Más tarde",
 /*128-131*/ L"¿Quitar %s de este equipo? Se eliminarán accesos directos, entrada de inicio automático y archivos. La configuración se conserva.", L"Desinstalado. La copia en ejecución se cerrará al pulsar Aceptar.", L"Modo portable", L"Español",
 /*132-135*/ L"Comprobando actualizaciones…", L"Descargando actualización… %s%%", L"Aplicando actualización…", L"Sitio web",
-/*136-139*/ L"Código fuente (GitHub)", L"Licencia: PolyForm Noncommercial 1.0.0", L"Base de conocimientos (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"Licencia: PolyForm Noncommercial 1.0.0", L"Base de conocimientos (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"Modo portable: la configuración se guarda junto al ejecutable.", L"No hay trabajos seleccionados.", L"Cola de impresión borrada", L"Actualización %s disponible", L"Instalar para todos los usuarios requiere derechos de administrador.",
+/*145-146*/ L"Fuente", L"Tamaño de fuente",
 };
 
 const wchar_t* const kStr_zhHans[STR_COUNT] = {
@@ -154,8 +157,9 @@ const wchar_t* const kStr_zhHans[STR_COUNT] = {
 /*124-127*/ L"确定", L"取消", L"以管理员身份重试", L"稍后",
 /*128-131*/ L"从本机移除 %s？将删除快捷方式、自启动项和程序文件，设置将保留。", L"已卸载。运行中的副本将在点击“确定”后关闭。", L"便携模式", L"简体中文",
 /*132-135*/ L"正在检查更新…", L"正在下载更新… %s%%", L"正在应用更新…", L"网站",
-/*136-139*/ L"源代码（GitHub）", L"许可证：PolyForm Noncommercial 1.0.0", L"知识库（Wiki）", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"许可证：PolyForm Noncommercial 1.0.0", L"知识库（Wiki）", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"便携模式：设置保存在程序文件旁边。", L"未选择任何任务。", L"打印队列已清空", L"有可用更新 %s", L"为所有用户安装需要管理员权限。",
+/*145-146*/ L"字体", L"字号",
 };
 
 const wchar_t* const kStr_zhHant[STR_COUNT] = {
@@ -193,8 +197,9 @@ const wchar_t* const kStr_zhHant[STR_COUNT] = {
 /*124-127*/ L"確定", L"取消", L"以系統管理員身分重試", L"稍後",
 /*128-131*/ L"從本機移除 %s？將刪除捷徑、自動啟動項和程式檔案，設定會保留。", L"已解除安裝。執行中的副本將在點擊「確定」後關閉。", L"可攜模式", L"繁體中文",
 /*132-135*/ L"正在檢查更新…", L"正在下載更新… %s%%", L"正在套用更新…", L"網站",
-/*136-139*/ L"原始程式碼（GitHub）", L"授權：PolyForm Noncommercial 1.0.0", L"知識庫（Wiki）", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"授權：PolyForm Noncommercial 1.0.0", L"知識庫（Wiki）", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"可攜模式：設定儲存在程式檔案旁邊。", L"未選擇任何工作。", L"列印佇列已清除", L"有可用更新 %s", L"為所有使用者安裝需要系統管理員權限。",
+/*145-146*/ L"字型", L"字型大小",
 };
 
 const wchar_t* const kStr_ar[STR_COUNT] = {
@@ -232,8 +237,9 @@ const wchar_t* const kStr_ar[STR_COUNT] = {
 /*124-127*/ L"موافق", L"إلغاء", L"إعادة المحاولة كمسؤول", L"لاحقًا",
 /*128-131*/ L"إزالة %s من هذا الجهاز؟ ستُحذف الاختصارات وإدخال بدء التشغيل التلقائي وملفات البرنامج. تُحفظ الإعدادات.", L"تمت الإزالة. ستُغلق النسخة العاملة بعد الضغط على موافق.", L"وضع محمول", L"العربية",
 /*132-135*/ L"جارٍ التحقق من التحديثات…", L"جارٍ تنزيل التحديث… %s%%", L"جارٍ تطبيق التحديث…", L"الموقع",
-/*136-139*/ L"الشيفرة المصدرية (GitHub)", L"الترخيص: PolyForm Noncommercial 1.0.0", L"قاعدة المعرفة (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"الترخيص: PolyForm Noncommercial 1.0.0", L"قاعدة المعرفة (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"وضع محمول: تُحفظ الإعدادات بجانب الملف التنفيذي.", L"لا مهام محددة.", L"تم مسح قائمة الطباعة", L"تحديث %s متاح", L"التثبيت لجميع المستخدمين يتطلب صلاحيات المسؤول.",
+/*145-146*/ L"الخط", L"حجم الخط",
 };
 
 const wchar_t* const kStr_hi[STR_COUNT] = {
@@ -271,8 +277,9 @@ const wchar_t* const kStr_hi[STR_COUNT] = {
 /*124-127*/ L"ठीक है", L"रद्द करें", L"प्रशासक के रूप में पुनः प्रयास", L"बाद में",
 /*128-131*/ L"%s को इस कंप्यूटर से हटाएँ? शॉर्टकट, ऑटोस्टार्ट प्रविष्टि और प्रोग्राम फ़ाइलें हटेंगी। सेटिंग्स रहेंगी।", L"अनइंस्टॉल हुआ। चल रही प्रति OK दबाने पर बंद होगी।", L"पोर्टेबल मोड", L"हिन्दी",
 /*132-135*/ L"अद्यतन जाँचे जा रहे…", L"अद्यतन डाउनलोड… %s%%", L"अद्यतन लागू हो रहा…", L"वेबसाइट",
-/*136-139*/ L"स्रोत कोड (GitHub)", L"लाइसेंस: PolyForm Noncommercial 1.0.0", L"ज्ञान आधार (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"लाइसेंस: PolyForm Noncommercial 1.0.0", L"ज्ञान आधार (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"पोर्टेबल मोड: सेटिंग्स exe के साथ संग्रहीत होती हैं।", L"कोई कार्य चयनित नहीं।", L"प्रिंट क़तार साफ़ हुई", L"अद्यतन %s उपलब्ध", L"सभी उपयोगकर्ताओं हेतु स्थापना में प्रशासक अधिकार चाहिए।",
+/*145-146*/ L"फ़ॉन्ट", L"फ़ॉन्ट आकार",
 };
 
 const wchar_t* const kStr_pt[STR_COUNT] = {
@@ -310,8 +317,9 @@ const wchar_t* const kStr_pt[STR_COUNT] = {
 /*124-127*/ L"OK", L"Cancelar", L"Tentar novamente como admin", L"Depois",
 /*128-131*/ L"Remover o %s deste computador? Atalhos, entrada de inicialização e arquivos serão excluídos. As configurações são mantidas.", L"Desinstalado. A cópia em execução fechará após OK.", L"Modo portátil", L"Português",
 /*132-135*/ L"Verificando atualizações…", L"Baixando atualização… %s%%", L"Aplicando atualização…", L"Site",
-/*136-139*/ L"Código-fonte (GitHub)", L"Licença: PolyForm Noncommercial 1.0.0", L"Base de conhecimento (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"Licença: PolyForm Noncommercial 1.0.0", L"Base de conhecimento (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"Modo portátil: configurações ficam ao lado do executável.", L"Nenhum trabalho selecionado.", L"Fila de impressão limpa", L"Atualização %s disponível", L"Instalar para todos os usuários exige direitos de administrador.",
+/*145-146*/ L"Fonte", L"Tamanho da fonte",
 };
 
 const wchar_t* const kStr_fr[STR_COUNT] = {
@@ -349,8 +357,9 @@ const wchar_t* const kStr_fr[STR_COUNT] = {
 /*124-127*/ L"OK", L"Annuler", L"Réessayer en administrateur", L"Plus tard",
 /*128-131*/ L"Retirer %s de cet ordinateur ? Raccourcis, entrée de démarrage et fichiers seront supprimés. Les paramètres sont conservés.", L"Désinstallé. La copie en cours se fermera après OK.", L"Mode portable", L"Français",
 /*132-135*/ L"Vérification des mises à jour…", L"Téléchargement… %s%%", L"Application de la mise à jour…", L"Site web",
-/*136-139*/ L"Code source (GitHub)", L"Licence : PolyForm Noncommercial 1.0.0", L"Base de connaissances (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"Licence : PolyForm Noncommercial 1.0.0", L"Base de connaissances (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"Mode portable : les paramètres sont stockés à côté de l'exécutable.", L"Aucun travail sélectionné.", L"File d'impression effacée", L"Mise à jour %s disponible", L"L'installation pour tous les utilisateurs requiert les droits administrateur.",
+/*145-146*/ L"Police", L"Taille de police",
 };
 
 const wchar_t* const kStr_de[STR_COUNT] = {
@@ -388,6 +397,7 @@ const wchar_t* const kStr_de[STR_COUNT] = {
 /*124-127*/ L"OK", L"Abbrechen", L"Als Admin wiederholen", L"Später",
 /*128-131*/ L"%s von diesem Computer entfernen? Verknüpfungen, Autostart-Eintrag und Programmdateien werden gelöscht. Einstellungen bleiben erhalten.", L"Deinstalliert. Die laufende Kopie schließt nach OK.", L"Portabler Modus", L"Deutsch",
 /*132-135*/ L"Updates werden geprüft…", L"Update wird geladen… %s%%", L"Update wird angewendet…", L"Website",
-/*136-139*/ L"Quellcode (GitHub)", L"Lizenz: PolyForm Noncommercial 1.0.0", L"Wissensdatenbank (Wiki)", L"© 2026 Mikhail Deynekin",
+/*136-139*/ L"GitHub Repository", L"Lizenz: PolyForm Noncommercial 1.0.0", L"Wissensdatenbank (Wiki)", L"© 2026 Mikhail Deynekin",
 /*140-144*/ L"Portabler Modus: Einstellungen liegen neben der EXE.", L"Keine Aufträge ausgewählt.", L"Druckwarteschlange geleert", L"Update %s verfügbar", L"Installation für alle Benutzer erfordert Administratorrechte.",
+/*145-146*/ L"Schriftart", L"Schriftgröße",
 };

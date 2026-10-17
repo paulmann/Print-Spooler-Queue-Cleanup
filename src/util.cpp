@@ -292,7 +292,7 @@ bool RegGetDword(HKEY root, const wchar_t* subkey, const wchar_t* name, DWORD& o
     DWORD type = 0, size = sizeof(out);
     LSTATUS st = RegQueryValueExW(k, name, nullptr, &type, (BYTE*)&out, &size);
     RegCloseKey(k);
-    return st == ERROR_SUCCESS && (type == REG_DWORD || type == REG_SZ);
+    return st == ERROR_SUCCESS && type == REG_DWORD;
 }
 
 bool RegSetDword(HKEY root, const wchar_t* subkey, const wchar_t* name, DWORD value) {
@@ -356,9 +356,10 @@ bool IsWineRuntime() {
 }
 
 DWORD WindowsBuild() {
-    DWORD v = 0;
-    if (RegGetDword(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", L"CurrentBuildNumber", v))
-        return v;
+    // CurrentBuildNumber хранится как REG_SZ — числовое чтение всегда давало 0
+    std::wstring s;
+    if (RegGetString(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", L"CurrentBuildNumber", s))
+        return (DWORD)wcstoul(s.c_str(), nullptr, 10);
     return 0;
 }
 

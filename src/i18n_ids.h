@@ -149,7 +149,9 @@ enum StrId : int {
     STR_BALLOON_CLEAR_OK,   // 142
     STR_BALLOON_UPDATE,     // 143 %s
     STR_WIZ_SCOPE_NOTE,     // 144
-    STR_COUNT,              // 145
+    STR_SET_FONT,           // 145
+    STR_SET_FONTSIZE,       // 146
+    STR_COUNT,              // 147
 };
 
 extern const wchar_t* const kStr_en[STR_COUNT];

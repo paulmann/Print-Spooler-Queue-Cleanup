@@ -3,7 +3,7 @@
 [![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-blue.svg)](./LICENSE)
 [![C++](https://img.shields.io/badge/C%2B%2B-26%20ready-00599C.svg)](./docs/BUILD.md)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20x64-0078d4.svg)](./docs/INSTALL.md)
-[![Version](https://img.shields.io/badge/version-5.0.0-green.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.1.0-green.svg)](./CHANGELOG.md)
 [![No dependencies](https://img.shields.io/badge/dependencies-none%20(.NET%20not%20required)-brightgreen.svg)](#zero-dependencies)
 
 **A native Win32 utility that shows, pauses, purges and repairs the Windows print queue —

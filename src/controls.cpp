@@ -202,7 +202,9 @@ static void FillRound(HDC hdc, const RECT& r, int rad, COLORREF fill, COLORREF b
     HGDIOBJ ob = SelectObject(hdc, br);
     HGDIOBJ op = SelectObject(hdc, pen);
     DrawRoundRect(hdc, r, rad);
-    FillPath(hdc);
+    // Окантовка обязана быть сплошной: заливка и обводка одним вызовом
+    // (раньше обводка не рисовалась вовсе — оставались только «уголки»).
+    if (hasBorder) StrokeAndFillPath(hdc); else FillPath(hdc);
     SelectObject(hdc, ob);
     SelectObject(hdc, op);
     DeleteObject(br);
@@ -268,7 +270,7 @@ bool CtrlHandleDrawItem(DRAWITEMSTRUCT* dis) {
     switch (d->btnKind) {
         case BK_Accent: fill = t.accent; border = t.accent; fg = t.accentText; break;
         case BK_Danger: fill = t.danger; border = t.danger; fg = RGB(255, 255, 255); break;
-        case BK_Subtle: fill = t.bg; border = t.bg; fg = t.text; break;
+        case BK_Subtle: fill = t.bg; border = t.border; fg = t.text; break;
         default: break;
     }
     if (enabled && d->hot) {
@@ -279,7 +281,7 @@ bool CtrlHandleDrawItem(DRAWITEMSTRUCT* dis) {
     }
     if (enabled && d->pressed) fill = Mix(fill, t.bg, 0.25);
     if (!enabled) { fill = Mix(fill, t.bg, 0.5); fg = t.subtext; border = Mix(border, t.bg, 0.6); }
-    FillRound(hdc, r, rad, fill, border, d->btnKind == BK_Standard || d->btnKind == BK_Subtle);
+    FillRound(hdc, r, rad, fill, border, true);   // сплошная окантовка у всех кнопок
 
     auto label = LabelOf(*d);
     SetBkMode(hdc, TRANSPARENT);

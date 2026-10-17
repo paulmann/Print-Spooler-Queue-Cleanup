@@ -7,6 +7,8 @@ enum ThemeMode : int { THEME_SYSTEM = 0, THEME_LIGHT = 1, THEME_DARK = 2 };
 struct Settings {
     int         themeMode         = THEME_SYSTEM;
     std::wstring lang;                       // "" = follow system; else BCP-ish tag from i18n table
+    std::wstring fontFace;                   // "" = built-in default (Segoe UI)
+    int         fontSize         = 10;       // pt; offered 8..12 in Settings
     bool        trayIcon          = true;
     bool        minimizeToTray    = true;
     bool        startMinimized    = false;

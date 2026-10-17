@@ -23,6 +23,7 @@ struct Theme {
     COLORREF hoverBg     = 0;
     COLORREF chipBg      = 0;
     HBRUSH brBg = nullptr, brSurface = nullptr, brSurface2 = nullptr;
+    HBRUSH brHeader = nullptr, brBorder = nullptr;   // фон шапки списка, линия-разделитель
     HFONT font = nullptr, fontBold = nullptr, fontSmall = nullptr, fontBig = nullptr;
     HFONT fontIcon = nullptr, fontIconBig = nullptr;   // Segoe MDL2 Assets
 };

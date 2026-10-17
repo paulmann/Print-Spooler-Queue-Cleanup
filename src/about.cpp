@@ -23,24 +23,31 @@ struct AB {
 };
 static AB a;
 
-static void SetLink(HWND h, int strId, const char* url) {
-    std::wstring txt = util::Fmt(L"<a href=\"%S\">%s</a>", url, psqc::Str(strId));
-    SetWindowTextW(h, txt.c_str());
-}
-
 static void ApplyTexts() {
     SetWindowTextW(a.hwnd, psqc::Str(STR_ABOUT_TITLE));
     SetWindowTextW(a.title, psqc::Str(STR_APP_TITLE));
     SetWindowTextW(a.ver, util::Fmt(psqc::Str(STR_ABOUT_VERSION), PSQC_VERSION_STR_W).c_str());
     SetWindowTextW(a.author, psqc::Str(STR_ABOUT_AUTHOR));
     SetWindowTextW(a.copy, psqc::Str(STR_COPYRIGHT));
-    SetLink(a.lSite, STR_LINK_SITE, PSQC_HOMEPAGE);
-    SetLink(a.lRepo, STR_LINK_REPO, PSQC_REPO_URL);
-    SetLink(a.lLic, STR_LINK_LICENSE, PSQC_LICENSE_URL);
-    SetLink(a.lWiki, STR_LINK_WIKI, PSQC_WIKI_URL);
+    CtrlSetStrId(a.lSite, STR_LINK_SITE);
+    CtrlSetStrId(a.lRepo, STR_LINK_REPO);
+    CtrlSetStrId(a.lLic, STR_LINK_LICENSE);
+    CtrlSetStrId(a.lWiki, STR_LINK_WIKI);
     CtrlSetStrId(a.bUpd, STR_BTN_CHECK_UPD);
     CtrlSetStrId(a.bDiag, STR_BTN_COPY_DIAG);
     CtrlSetStrId(a.bClose, STR_BTN_CLOSE);
+}
+
+void AboutReskin() {
+    if (!a.hwnd) return;
+    ThemeDarkTitlebar(a.hwnd, Th().dark);
+    ThemeDarkControls(a.hwnd, Th().dark);
+    ApplyTexts();
+    SendMessageW(a.title, WM_SETFONT, (WPARAM)Th().fontBig, TRUE);
+    SendMessageW(a.ver, WM_SETFONT, (WPARAM)Th().font, TRUE);
+    SendMessageW(a.author, WM_SETFONT, (WPARAM)Th().font, TRUE);
+    SendMessageW(a.copy, WM_SETFONT, (WPARAM)Th().fontSmall, TRUE);
+    InvalidateRect(a.hwnd, nullptr, TRUE);
 }
 
 static std::wstring BuildDiagnostics() {
@@ -87,6 +94,10 @@ static LRESULT CALLBACK AboutProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             if (HIWORD(wp) == BN_CLICKED) {
                 if (id == IDA_BTN_CLOSE) { DestroyWindow(hwnd); return 0; }
                 if (id == IDA_BTN_UPD) { UpdateCheckAsync(true); return 0; }
+                if (id == IDA_LINK_SITE) { util::OpenUrl(PSQC_HOMEPAGE); return 0; }
+                if (id == IDA_LINK_REPO) { util::OpenUrl(PSQC_REPO_URL); return 0; }
+                if (id == IDA_LINK_LIC) { util::OpenUrl(PSQC_LICENSE_URL); return 0; }
+                if (id == IDA_LINK_WIKI) { util::OpenUrl(PSQC_WIKI_URL); return 0; }
                 if (id == IDA_BTN_DIAG) {
                     util::CopyToClipboard(BuildDiagnostics());
                     MessageBoxW(hwnd, psqc::Str(STR_MSG_DIAG_COPIED), psqc::Str(STR_APP_TITLE), MB_ICONINFORMATION);
@@ -95,17 +106,8 @@ static LRESULT CALLBACK AboutProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             }
             return 0;
         }
-        case WM_NOTIFY: {
-            auto* nm = (NMHDR*)lp;
-            if (nm->code == NM_CLICK || nm->code == NM_RETURN) {
-                auto* li = (NMLINK*)lp;
-                if (li->item.szUrl[0]) util::OpenUrl(util::WideToUtf8(li->item.szUrl).c_str());
-            }
-            return 0;
-        }
         case WM_PSQC_LANG_CHANGED:
-            ApplyTexts();
-            InvalidateRect(hwnd, nullptr, TRUE);
+            AboutReskin();
             return 0;
         case WM_CLOSE:
             DestroyWindow(hwnd);
@@ -130,7 +132,7 @@ void AboutShow() {
 
     int dpi = util::DpiOf(g.hwndMain);
     auto S = [&](int v) { return MulDiv(v, dpi, 96); };
-    int W = S(470), H = S(430);
+    int W = S(470), H = S(460);
     a.hwnd = CreateWindowExW(WS_EX_DLGMODALFRAME, PSQC_ABOUT_CLASS, psqc::Str(STR_ABOUT_TITLE),
                              WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, 0, 0, W, H,
                              g.hwndMain, nullptr, g.hInst, nullptr);
@@ -145,13 +147,11 @@ void AboutShow() {
     a.ver = mkStatic(IDA_VER, SS_LEFT);
     a.author = mkStatic(IDA_AUTHOR, SS_LEFT);
     a.copy = mkStatic(IDA_COPY, SS_LEFT);
-    auto mkLink = [&](int id) {
-        return CreateWindowExW(0, WC_LINK, L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP, 0, 0, 10, 10, a.hwnd, (HMENU)(INT_PTR)id, g.hInst, nullptr);
-    };
-    a.lSite = mkLink(IDA_LINK_SITE);
-    a.lRepo = mkLink(IDA_LINK_REPO);
-    a.lLic = mkLink(IDA_LINK_LIC);
-    a.lWiki = mkLink(IDA_LINK_WIKI);
+    // Ссылки — обычными кнопками в общем столбце
+    a.lSite = CreatePsqcButton(a.hwnd, IDA_LINK_SITE, STR_LINK_SITE, GLYPH_LINK, BK_Standard);
+    a.lRepo = CreatePsqcButton(a.hwnd, IDA_LINK_REPO, STR_LINK_REPO, GLYPH_LINK, BK_Standard);
+    a.lLic = CreatePsqcButton(a.hwnd, IDA_LINK_LIC, STR_LINK_LICENSE, GLYPH_SHIELD, BK_Standard);
+    a.lWiki = CreatePsqcButton(a.hwnd, IDA_LINK_WIKI, STR_LINK_WIKI, GLYPH_HELP, BK_Standard);
     a.bUpd = CreatePsqcButton(a.hwnd, IDA_BTN_UPD, STR_BTN_CHECK_UPD, GLYPH_DOWNLOAD, BK_Standard);
     a.bDiag = CreatePsqcButton(a.hwnd, IDA_BTN_DIAG, STR_BTN_COPY_DIAG, GLYPH_COPY, BK_Standard);
     a.bClose = CreatePsqcButton(a.hwnd, IDA_BTN_CLOSE, STR_BTN_CLOSE, 0, BK_Accent);
@@ -172,15 +172,12 @@ void AboutShow() {
     SetWindowPos(a.ver, nullptr, x, y, W - x - S(20), S(20), SWP_NOZORDER); y += S(24);
     SetWindowPos(a.author, nullptr, x, y, W - x - S(20), S(20), SWP_NOZORDER); y += S(20);
     SetWindowPos(a.copy, nullptr, x, y, W - x - S(20), S(18), SWP_NOZORDER); y += S(28);
-    for (HWND h : { a.lSite, a.lRepo, a.lLic, a.lWiki }) {
-        SetWindowPos(h, nullptr, x, y, W - x - S(20), S(20), SWP_NOZORDER);
-        y += S(22);
+    // Ссылки и действия — кнопки в столбец, каждая на всю ширину окна
+    int bw = W - S(40), bh = S(30), gap = S(8);
+    for (HWND h : { a.lSite, a.lRepo, a.lLic, a.lWiki, a.bUpd, a.bDiag, a.bClose }) {
+        SetWindowPos(h, nullptr, S(20), y, bw, bh, SWP_NOZORDER);
+        y += bh + gap;
     }
-    y += S(8);
-    int bw = S(150), bh = S(32);
-    SetWindowPos(a.bUpd, nullptr, S(20), y, bw, bh, SWP_NOZORDER);
-    SetWindowPos(a.bDiag, nullptr, S(20) + bw + S(8), y, bw, bh, SWP_NOZORDER);
-    SetWindowPos(a.bClose, nullptr, W - S(20) - S(100), y, S(100), bh, SWP_NOZORDER);
 
     util::CenterWindow(a.hwnd, g.hwndMain);
     ShowWindow(a.hwnd, SW_SHOW);

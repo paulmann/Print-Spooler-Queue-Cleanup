@@ -24,6 +24,7 @@ struct MW {
     HWND cmbLang = nullptr, cmbTheme = nullptr, tglTray = nullptr, tglAuto = nullptr;
     HWND lblLang = nullptr, lblTheme = nullptr, lblTray = nullptr, lblAuto = nullptr;
     HWND chipSvc = nullptr, chipUser = nullptr, chipPortable = nullptr;
+    HWND tips = nullptr;   // общий tooltip: полные подписи переключателей
     std::vector<spooler::PrinterJobs> snapshot;
     std::vector<spooler::JobInfo> flat;
     bool busy = false;
@@ -36,9 +37,46 @@ static MW m;
 HWND MainWindowHandle() { return m.hwnd; }
 bool MainWindowBusy() { return m.busy; }
 
+// ---- tooltips: полная надпись при наведении -----------------------------------
+static void TipsEnsure(HWND parent) {
+    if (m.tips || !parent) return;
+    m.tips = CreateWindowExW(WS_EX_TOPMOST, TOOLTIPS_CLASSW, nullptr,
+                             WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP, 0, 0, 0, 0,
+                             parent, nullptr, g.hInst, nullptr);
+    if (m.tips) SetWindowPos(m.tips, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+}
+static void TipTool(HWND target, int strId, bool add) {
+    if (!m.tips || !target) return;
+    TOOLINFOW ti{};
+    ti.cbSize = sizeof(ti);
+    ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
+    ti.hwnd = m.hwnd;
+    ti.uId = (UINT_PTR)target;
+    ti.lpszText = (LPWSTR)psqc::Str(strId);
+    SendMessageW(m.tips, add ? TTM_ADDTOOLW : TTM_UPDATETIPTEXTW, 0, (LPARAM)&ti);
+}
+static void TipsAdd() {
+    TipsEnsure(m.hwnd);
+    TipTool(m.tglTray, STR_SET_TRAY, true);
+    TipTool(m.lblTray, STR_SET_TRAY, true);
+    TipTool(m.tglAuto, STR_SET_AUTOSTART, true);
+    TipTool(m.lblAuto, STR_SET_AUTOSTART, true);
+}
+static void TipsUpdateTexts() {
+    TipTool(m.tglTray, STR_SET_TRAY, false);
+    TipTool(m.lblTray, STR_SET_TRAY, false);
+    TipTool(m.tglAuto, STR_SET_AUTOSTART, false);
+    TipTool(m.lblAuto, STR_SET_AUTOSTART, false);
+}
+
 // ---- layout ------------------------------------------------------------------
+static int g_minCxClient = 0;   // минимальная ширина клиента (считается в Layout)
+
 static void Layout() {
     if (!m.hwnd) return;
+    static bool s_inLayout = false;
+    if (s_inLayout) return;   // авто-подгон ширины внутри Layout вызывает WM_SIZE
+    s_inLayout = true;
     RECT rc{};
     GetClientRect(m.hwnd, &rc);
     int dpi = util::DpiOf(m.hwnd);
@@ -84,10 +122,25 @@ static void Layout() {
     int listH = rc.bottom - statusH - setRowH - S(18) - y;
     if (listH < S(80)) listH = S(80);
     SetWindowPos(m.list, nullptr, margin, y, rc.right - margin * 2, listH, SWP_NOZORDER);
-    SetWindowPos(m.emptyT, nullptr, margin, y + listH / 2 - S(28), rc.right - margin * 2, S(26), SWP_NOZORDER);
-    SetWindowPos(m.emptyH, nullptr, margin, y + listH / 2 + S(2), rc.right - margin * 2, S(20), SWP_NOZORDER);
+    // Оверлей пустой очереди — ВНУТРИ рамки списка: фон STATIC перекрывал окантовку.
+    int ovx = margin + S(6), ovw = rc.right - margin * 2 - S(12);
+    SetWindowPos(m.emptyT, nullptr, ovx, y + listH / 2 - S(28), ovw, S(26), SWP_NOZORDER);
+    SetWindowPos(m.emptyH, nullptr, ovx, y + listH / 2 + S(2), ovw, S(20), SWP_NOZORDER);
 
     int ys = rc.bottom - statusH - setRowH - S(8);
+    // Ширина подписей — по фактическому тексту текущего языка и шрифта:
+    // «Запускать вместе с Windows» больше не обрезается.
+    auto TextCx = [&](const wchar_t* s) {
+        HDC dc = GetDC(m.hwnd);
+        HFONT of = (HFONT)SelectObject(dc, Th().font);
+        SIZE ts{};
+        GetTextExtentPoint32W(dc, s, (int)wcslen(s), &ts);
+        SelectObject(dc, of);
+        ReleaseDC(m.hwnd, dc);
+        return ts.cx;
+    };
+    int wTray = TextCx(psqc::Str(STR_SET_TRAY)) + S(8);
+    int wAuto = TextCx(psqc::Str(STR_SET_AUTOSTART)) + S(8);
     int cx = margin;
     SetWindowPos(m.lblLang, nullptr, cx, ys + S(6), S(70), S(20), SWP_NOZORDER);
     cx += S(74);
@@ -99,11 +152,11 @@ static void Layout() {
     cx += S(118) + S(10);
     SetWindowPos(m.tglTray, nullptr, cx, ys + S(5), S(44), S(22), SWP_NOZORDER);
     cx += S(48);
-    SetWindowPos(m.lblTray, nullptr, cx, ys + S(6), S(130), S(20), SWP_NOZORDER);
-    cx += S(136);
+    SetWindowPos(m.lblTray, nullptr, cx, ys + S(6), wTray, S(20), SWP_NOZORDER);
+    cx += wTray + S(6);
     SetWindowPos(m.tglAuto, nullptr, cx, ys + S(5), S(44), S(22), SWP_NOZORDER);
     cx += S(48);
-    SetWindowPos(m.lblAuto, nullptr, cx, ys + S(6), S(150), S(20), SWP_NOZORDER);
+    SetWindowPos(m.lblAuto, nullptr, cx, ys + S(6), wAuto, S(20), SWP_NOZORDER);
 
     // header chips (right aligned in header band)
     int yc = S(14);
@@ -123,6 +176,21 @@ static void Layout() {
     PlaceChip(m.chipPortable, g.portable);
     PlaceChip(m.chipUser, true);
     PlaceChip(m.chipSvc, true);
+
+    // Минимальная ширина клиента = тулбар целиком (левая группа + правая).
+    // Узкое окно раньше выталкивало правую группу кнопок за край.
+    {
+        int rightW = W(m.btnSettings) + S(8) + W(m.btnTheme) + S(8) + W(m.btnAbout);
+        g_minCxClient = margin * 2 + (x - margin) + S(8) + rightW;
+        RECT rw{};
+        GetWindowRect(m.hwnd, &rw);
+        RECT fr{ 0, 0, g_minCxClient, 400 };
+        AdjustWindowRectEx(&fr, WS_OVERLAPPEDWINDOW, FALSE, 0);
+        int needWin = fr.right - fr.left;
+        if ((rw.right - rw.left) < needWin)
+            SetWindowPos(m.hwnd, nullptr, 0, 0, needWin, rw.bottom - rw.top, SWP_NOMOVE | SWP_NOZORDER);
+    }
+    s_inLayout = false;
 
     // list columns scale
     int cw[5] = { S(260), S(130), S(90), S(130), S(150) };
@@ -346,6 +414,16 @@ static void ApplyStaticTexts() {
     FillThemeCombo();
     CtrlRelabelAll();
     UpdateHeaderChips();
+    TipsUpdateTexts();
+}
+
+static void ApplyFonts() {
+    if (!m.hwnd) return;
+    SendMessageW(m.list, WM_SETFONT, (WPARAM)Th().font, TRUE);
+    SendMessageW(m.emptyT, WM_SETFONT, (WPARAM)Th().fontBig, TRUE);
+    SendMessageW(m.emptyH, WM_SETFONT, (WPARAM)Th().font, TRUE);
+    for (HWND h : { m.lblLang, m.lblTheme, m.lblTray, m.lblAuto, m.cmbLang, m.cmbTheme })
+        SendMessageW(h, WM_SETFONT, (WPARAM)Th().font, TRUE);
 }
 
 void MainWindowReskin() {
@@ -355,11 +433,9 @@ void MainWindowReskin() {
     ListView_SetBkColor(m.list, Th().surface2);
     ListView_SetTextBkColor(m.list, Th().surface2);
     ListView_SetTextColor(m.list, Th().text);
-    HWND hdr = ListView_GetHeader(m.list);
-    if (hdr) {
-        ListView_SetBkColor(m.list, Th().surface2);
-    }
     ApplyStaticTexts();
+    ApplyFonts();
+    Layout();                       // ширины подписей зависят от языка и шрифта
     InvalidateRect(m.hwnd, nullptr, TRUE);
 }
 
@@ -403,6 +479,50 @@ static void PaintStatus(HDC hdc, const RECT& rc) {
     SelectObject(hdc, of);
 }
 
+// ---- шапка таблицы: собственная отрисовка (subclass) ---------------------------------
+// NM_CUSTOMDRAW шапки внутри ListView стабильно до родителя не доходит —
+// рисуем шапку сами в WM_PAINT: выделенный фон, белый текст, разделители.
+static LRESULT CALLBACK HeaderProc(HWND h, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR) {
+    switch (msg) {
+        case WM_ERASEBKGND:
+            return 1;
+        case WM_PAINT: {
+            PAINTSTRUCT ps{};
+            HDC hdc = BeginPaint(h, &ps);
+            RECT rcTotal{};
+            GetClientRect(h, &rcTotal);
+            FillRect(hdc, &rcTotal, Th().brHeader);
+            SetBkMode(hdc, TRANSPARENT);
+            SetTextColor(hdc, Th().text);
+            HFONT of = (HFONT)SelectObject(hdc, Th().font);
+            UINT base = CurrentLangIsRtl() ? (UINT)(DT_RIGHT | DT_RTLREADING) : (UINT)DT_LEFT;
+            int n = (int)SendMessageW(h, HDM_GETITEMCOUNT, 0, 0);
+            for (int i = 0; i < n; ++i) {
+                RECT rc{};
+                if (!Header_GetItemRect(h, i, &rc)) continue;
+                wchar_t txt[256]{};
+                HDITEMW it{};
+                it.mask = HDI_TEXT;
+                it.pszText = txt;
+                it.cchTextMax = 256;
+                Header_GetItem(h, i, &it);
+                RECT tr = rc;
+                tr.left += util::Scale(h, 8);
+                tr.right -= util::Scale(h, 8);
+                DrawTextW(hdc, txt, -1, &tr, base | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+                RECT vln{ rc.right - 1, rc.top + util::Scale(h, 6), rc.right, rc.bottom - util::Scale(h, 6) };
+                FillRect(hdc, &vln, Th().brBorder);
+            }
+            RECT ln{ rcTotal.left, rcTotal.bottom - 1, rcTotal.right, rcTotal.bottom };
+            FillRect(hdc, &ln, Th().brBorder);
+            SelectObject(hdc, of);
+            EndPaint(h, &ps);
+            return 0;
+        }
+    }
+    return DefSubclassProc(h, msg, wp, lp);
+}
+
 // ---- wndproc ------------------------------------------------------------------------
 static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
@@ -424,11 +544,31 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             EndPaint(hwnd, &ps);
             return 0;
         }
-        case WM_CTLCOLORSTATIC:
+        case WM_CTLCOLORSTATIC: {
+            HWND c = (HWND)lp;
+            if (c == m.emptyT || c == m.emptyH) {
+                // Оверлей пустой очереди лежит НА списке: фон — как у списка.
+                SetBkColor((HDC)wp, Th().surface2);
+                SetTextColor((HDC)wp, c == m.emptyT ? Th().text : Th().subtext);
+                return (LRESULT)Th().brSurface2;
+            }
             return (LRESULT)ThemeCtlColorBg((HDC)wp);
+        }
         case WM_DRAWITEM:
             if (CtrlHandleDrawItem((DRAWITEMSTRUCT*)lp)) return TRUE;
             return 0;
+        case WM_GETMINMAXINFO: {
+            DefWindowProcW(hwnd, msg, wp, lp);
+            if (g_minCxClient > 0) {
+                auto* mmi = (MINMAXINFO*)lp;
+                RECT fr{ 0, 0, g_minCxClient, 400 };
+                AdjustWindowRectEx(&fr, WS_OVERLAPPEDWINDOW, FALSE, 0);
+                mmi->ptMinTrackSize.x = fr.right - fr.left;
+                int minH = MulDiv(420, util::DpiOf(hwnd), 96);
+                if (mmi->ptMinTrackSize.y < minH) mmi->ptMinTrackSize.y = minH;
+            }
+            return 0;
+        }
         case WM_SIZE:
             Layout();
             return 0;
@@ -456,13 +596,16 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                     case IDC_BTN_RESTART: RestartSpoolerAsync(); return 0;
                     case IDC_BTN_SETTINGS: SettingsShow(); return 0;
                     case IDC_BTN_THEME: {
-                        int next = (S().themeMode + 1) % 3;
+                        // Прямое переключение светлая<->тёмная по ФАКТИЧЕСКОЙ теме:
+                        // прежний цикл трёх состояний давал «холостой» клик через «Как в системе».
+                        int next = ThemeIsDarkEffective() ? THEME_LIGHT : THEME_DARK;
                         S().themeMode = next;
                         SettingsSave();
                         ThemeSetMode(next);
                         MainWindowReskin();
                         TrayReskin();
                         FillThemeCombo();
+                        CtrlSetGlyph(m.btnTheme, Th().dark ? GLYPH_SUN : GLYPH_MOON);
                         return 0;
                     }
                     case IDC_BTN_ABOUT: AboutShow(); return 0;
@@ -640,6 +783,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             S().winMaximized = IsZoomed(hwnd) != 0;
             SettingsSave();
             TrayDestroy();
+            m.tips = nullptr;
             PostQuitMessage(0);
             return 0;
         }
@@ -661,8 +805,9 @@ void MainWindowCreate(HINSTANCE hInst, int showCmd) {
     RegisterClassExW(&wc);
 
     int dpi = util::DpiOf(nullptr);
-    int w = MulDiv(900, dpi, 96), h = MulDiv(620, dpi, 96);
+    int w = MulDiv(1360, dpi, 96), h = MulDiv(620, dpi, 96);   // 8 кнопок тулбара при 10pt требуют ~1300px
     RECT wa = util::WorkAreaRect();
+    if (w > (wa.right - wa.left) - 16) w = (wa.right - wa.left) - 16;   // не шире рабочего стола
     int x = S().winX >= 0 ? S().winX : wa.left + ((wa.right - wa.left) - w) / 2;
     int y = S().winY >= 0 ? S().winY : wa.top + ((wa.bottom - wa.top) - h) / 2;
     if (S().winW > 200) w = S().winW;
@@ -683,6 +828,7 @@ void MainWindowCreate(HINSTANCE hInst, int showCmd) {
         WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SHOWSELALWAYS | LVS_SHAREIMAGELISTS,
         0, 0, 10, 10, m.hwnd, (HMENU)(INT_PTR)IDC_LIST, hInst, nullptr);
     ListView_SetExtendedListViewStyle(m.list, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_HEADERDRAGDROP);
+    if (HWND hdr0 = ListView_GetHeader(m.list)) SetWindowSubclass(hdr0, HeaderProc, 2, 0);
     m.btnRefresh = CreatePsqcButton(m.hwnd, IDC_BTN_REFRESH, STR_TB_REFRESH, GLYPH_REFRESH, BK_Standard);
     m.btnDelSel = CreatePsqcButton(m.hwnd, IDC_BTN_DELSEL, STR_TB_CLEAR_SEL, GLYPH_DELETE, BK_Standard);
     m.btnClearAll = CreatePsqcButton(m.hwnd, IDC_BTN_CLEARALL, STR_TB_CLEAR_ALL, GLYPH_CANCEL, BK_Danger);
@@ -706,14 +852,7 @@ void MainWindowCreate(HINSTANCE hInst, int showCmd) {
     m.lblTray = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOTIFY, 0, 0, 10, 10, m.hwnd, (HMENU)(INT_PTR)IDC_LBL_TRAY, hInst, nullptr);
     m.lblAuto = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOTIFY, 0, 0, 10, 10, m.hwnd, (HMENU)(INT_PTR)IDC_LBL_AUTOSTART, hInst, nullptr);
 
-    SendMessageW(m.emptyT, WM_SETFONT, (WPARAM)Th().fontBig, TRUE);
-    SendMessageW(m.emptyH, WM_SETFONT, (WPARAM)Th().font, TRUE);
-    SendMessageW(m.lblLang, WM_SETFONT, (WPARAM)Th().font, TRUE);
-    SendMessageW(m.lblTheme, WM_SETFONT, (WPARAM)Th().font, TRUE);
-    SendMessageW(m.lblTray, WM_SETFONT, (WPARAM)Th().font, TRUE);
-    SendMessageW(m.lblAuto, WM_SETFONT, (WPARAM)Th().font, TRUE);
-    SendMessageW(m.cmbLang, WM_SETFONT, (WPARAM)Th().font, TRUE);
-    SendMessageW(m.cmbTheme, WM_SETFONT, (WPARAM)Th().font, TRUE);
+    ApplyFonts();
 
     CtrlAddTip(m.btnRefresh, STR_TB_REFRESH);
     CtrlAddTip(m.btnDelSel, STR_TB_CLEAR_SEL);
@@ -724,6 +863,7 @@ void MainWindowCreate(HINSTANCE hInst, int showCmd) {
     CtrlAddTip(m.btnTheme, STR_SET_THEME);
     CtrlAddTip(m.btnAbout, STR_TB_ABOUT);
 
+    TipsAdd();
     SetupColumns();
     ApplyStaticTexts();
     MainWindowReskin();

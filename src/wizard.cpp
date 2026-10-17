@@ -279,6 +279,11 @@ static LRESULT CALLBACK WizardProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_ERASEBKGND: { RECT rc{}; GetClientRect(hwnd, &rc); FillRect((HDC)wp, &rc, Th().brBg); return 1; }
         case WM_CTLCOLORSTATIC: case WM_CTLCOLORBTN:
             return (LRESULT)ThemeCtlColorBg((HDC)wp);
+        case WM_CTLCOLOREDIT:
+            // Поле пути установки: в тёмной теме без этого текст не виден.
+            SetBkColor((HDC)wp, Th().surface2);
+            SetTextColor((HDC)wp, Th().text);
+            return (LRESULT)Th().brSurface2;
         case WM_DRAWITEM:
             // Without this the wizard's owner-draw buttons (Run once / Back / Next /
             // Cancel) are never painted: BS_OWNERDRAW parents must draw them here.

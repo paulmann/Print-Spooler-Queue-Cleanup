@@ -18,6 +18,9 @@ void SettingsLoad() {
     auto GetU = [&](const wchar_t* k, uint64_t& out) { if (auto* v = root.Find(k)) if (v->type == util::JsonValue::Num) out = (uint64_t)v->num; };
     GetI(L"themeMode", g_settings.themeMode);
     GetS(L"lang", g_settings.lang);
+    GetS(L"fontFace", g_settings.fontFace);
+    GetI(L"fontSize", g_settings.fontSize);
+    if (g_settings.fontSize < 8 || g_settings.fontSize > 16) g_settings.fontSize = 10;
     GetB(L"trayIcon", g_settings.trayIcon);
     GetB(L"minimizeToTray", g_settings.minimizeToTray);
     GetB(L"startMinimized", g_settings.startMinimized);
@@ -55,6 +58,8 @@ void SettingsSave() {
     j += Str("product", PSQC_VERSION_STR_W) + ",\n  ";
     j += I("themeMode", g_settings.themeMode) + ",\n  ";
     j += Str("lang", g_settings.lang) + ",\n  ";
+    j += Str("fontFace", g_settings.fontFace) + ",\n  ";
+    j += I("fontSize", g_settings.fontSize) + ",\n  ";
     j += B("trayIcon", g_settings.trayIcon) + ",\n  ";
     j += B("minimizeToTray", g_settings.minimizeToTray) + ",\n  ";
     j += B("startMinimized", g_settings.startMinimized) + ",\n  ";
