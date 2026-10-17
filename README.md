@@ -5,6 +5,7 @@
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20x64-0078d4.svg)](./docs/INSTALL.md)
 [![CI](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/actions/workflows/ci.yml/badge.svg)](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/paulmann/Print-Spooler-Queue-Cleanup?sort=semver)](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/releases/latest)
+[![npm](https://img.shields.io/npm/v/print-spooler-queue-cleanup.svg)](https://www.npmjs.com/package/print-spooler-queue-cleanup)
 [![No dependencies](https://img.shields.io/badge/dependencies-none%20(.NET%20not%20required)-brightgreen.svg)](#zero-dependencies)
 
 **A native Win32 utility that shows, pauses, purges and repairs the Windows print queue —
@@ -99,6 +100,18 @@ SpoolerCleanup.exe /tray /portable /lang=ru /theme=dark
 
 Full reference: [CLI & automation](./docs/wiki/CLI-and-Automation.md), user guide:
 [USER-GUIDE](./docs/USER-GUIDE.md).
+
+## Install from npm
+
+```cmd
+npx print-spooler-queue-cleanup --help        :: run without installing
+npm install -g print-spooler-queue-cleanup    :: or install the command
+```
+
+The package ships the same executable as the GitHub release (fetched from it at pack
+time, so the two cannot drift) and is published by the release workflow through npm
+trusted publishing, which attaches a provenance attestation. Windows 10/11 x64 only —
+`package.json` declares `os: win32`.
 
 ## Documentation
 

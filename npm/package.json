@@ -1,6 +1,6 @@
 {
   "name": "print-spooler-queue-cleanup",
-  "version": "5.1.1",
+  "version": "5.1.2",
   "description": "Fix a stuck Windows print queue: see every job, delete the one that wedges it, clear all, pause or restart the spooler - one self-contained .exe, no .NET.",
   "keywords": [
     "print-spooler",

@@ -15,12 +15,12 @@
 
 #define PSQC_VERSION_MAJOR 5
 #define PSQC_VERSION_MINOR 1
-#define PSQC_VERSION_PATCH 1
+#define PSQC_VERSION_PATCH 2
 #define PSQC_VERSION_BUILD 0
 
-#define PSQC_VERSION_STR_A "5.1.1"
-#define PSQC_VERSION_STR_W L"5.1.1"
-#define PSQC_VERSION_QUAD  5,1,1,0
+#define PSQC_VERSION_STR_A "5.1.2"
+#define PSQC_VERSION_STR_W L"5.1.2"
+#define PSQC_VERSION_QUAD  5,1,2,0
 
 // Settings / instance identity
 #define PSQC_SETTINGS_DIR      L"SpoolerCleanup"

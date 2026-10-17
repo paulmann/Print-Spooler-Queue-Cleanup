@@ -6,6 +6,27 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [5.1.2] — 2026-10-17
+
+**npm is now a first-class channel.** The package `print-spooler-queue-cleanup` is
+published from the release workflow itself, so the tarball and the GitHub asset are the
+same binary, built once.
+
+### Added
+
+- **Automated npm publishing** through OIDC trusted publishing: the `npm` job asks for
+  `id-token: write`, npm exchanges it for a short-lived credential and attaches
+  provenance — no npm token is stored in the repository, and the January 2027 retirement
+  of bypass-2FA publish tokens does not apply.
+- The job refuses to publish when the tag and `npm/package.json` disagree, so a package
+  can never claim a version the release does not have.
+- README: npm badge and an install section (`npx print-spooler-queue-cleanup`).
+
+### Notes
+
+- Application code is unchanged since 5.1.1; this release carries the packaging and the
+  documented distribution path.
+
 ## [5.1.1] — 2026-10-17
 
 **The command line works through pipes.** `SpoolerCleanup.exe` is a GUI-subsystem
@@ -604,6 +625,7 @@ three-command mental model and makes it safe to run unattended on a production p
 
 - Initial PowerShell and batch implementations of stop → delete → restart.
 
+[5.1.2]: https://github.com/paulmann/Print-Spooler-Queue-Cleanup/releases/tag/v5.1.2
 [5.1.1]: https://github.com/paulmann/Print-Spooler-Queue-Cleanup/releases/tag/v5.1.1
 [5.1.0]: https://github.com/paulmann/Print-Spooler-Queue-Cleanup/releases/tag/v5.1.0
 [4.0.1]: https://github.com/paulmann/Print-Spooler-Queue-Cleanup/releases/tag/v4.0.1
