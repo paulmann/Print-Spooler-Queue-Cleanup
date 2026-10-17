@@ -92,7 +92,7 @@ static void FillCombos() {
     int selSize = 2;
     for (int i = 0; i < 5; ++i) {
         wchar_t b[8]{};
-        _itow_s(sizes[i], b, 10);
+        swprintf(b, 8, L"%d", sizes[i]);   // _itow_s takes 4 args on MSVC
         SendMessageW(d.cSize, CB_ADDSTRING, 0, (LPARAM)b);
         if (sizes[i] == S().fontSize) selSize = i;
     }

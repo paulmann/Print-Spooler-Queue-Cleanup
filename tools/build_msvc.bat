@@ -7,8 +7,10 @@ setlocal enabledelayedexpansion
 cd /d "%~dp0.."
 if not exist dist mkdir dist
 
-set CXXFLAGS=/nologo /std:c++latest /W4 /utf-8 /O2 /MT /EHsc /GS /guard:cf /DYNAMICBASE /NXCOMPAT /HIGHENTROPYVA /DNDEBUG /DUNICODE /D_UNICODE /DWIN32_LEAN_AND_MEAN /DNOMINMAX /D_WIN32_WINNT=0x0A00 /Isrc
-set LDFLAGS=/nologo /SUBSYSTEM:WINDOWS /LTCG /OPT:REF,ICF /manifest:embed
+rem ASLR/NX/HighEntropyVA/CFG are link-time switches: cl rejects /HIGHENTROPYVA with
+rem D8021, and the others never reach the linker from a compile line.
+set CXXFLAGS=/nologo /std:c++latest /W4 /utf-8 /O2 /MT /EHsc /GS /guard:cf /DNDEBUG /DUNICODE /D_UNICODE /DWIN32_LEAN_AND_MEAN /DNOMINMAX /D_WIN32_WINNT=0x0A00 /Isrc
+set LDFLAGS=/nologo /SUBSYSTEM:WINDOWS /LTCG /OPT:REF,ICF /manifest:embed /DYNAMICBASE /NXCOMPAT /HIGHENTROPYVA /guard:cf
 rem Store build: add /DPSQC_STORE_BUILD to CXXFLAGS (disables in-app updater)
 
 echo [rc]  res\app.rc
