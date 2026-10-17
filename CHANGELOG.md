@@ -590,5 +590,7 @@ three-command mental model and makes it safe to run unattended on a production p
 
 - Initial PowerShell and batch implementations of stop → delete → restart.
 
+[5.1.0]: https://github.com/paulmann/Print-Spooler-Queue-Cleanup/releases/tag/v5.1.0
+[4.0.1]: https://github.com/paulmann/Print-Spooler-Queue-Cleanup/releases/tag/v4.0.1
 [4.0.0]: https://github.com/paulmann/Print-Spooler-Queue-Cleanup/releases/tag/v4.0.0
 [3.1.0]: https://github.com/paulmann/Print-Spooler-Queue-Cleanup/releases/tag/v3.1.0

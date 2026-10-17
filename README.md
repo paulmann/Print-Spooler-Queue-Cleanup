@@ -3,7 +3,7 @@
 [![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-blue.svg)](./LICENSE)
 [![C++](https://img.shields.io/badge/C%2B%2B-26%20ready-00599C.svg)](./docs/BUILD.md)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20x64-0078d4.svg)](./docs/INSTALL.md)
-[![Version](https://img.shields.io/badge/version-5.1.0-green.svg)](./CHANGELOG.md)
+[![Latest release](https://img.shields.io/github/v/release/paulmann/Print-Spooler-Queue-Cleanup?sort=semver)](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/releases/latest)
 [![No dependencies](https://img.shields.io/badge/dependencies-none%20(.NET%20not%20required)-brightgreen.svg)](#zero-dependencies)
 
 **A native Win32 utility that shows, pauses, purges and repairs the Windows print queue —
@@ -12,6 +12,38 @@ with a modern Fluent-style UI, tray integration, a built-in installer, self-upda
 on the target machine.**
 
 ---
+
+## The pain it solves
+
+A print job that fails to render **wedges the whole queue**. The Print Spooler keeps
+reporting *Running*, the job sits in *Deleting…* and everything behind it stalls — and
+Windows offers no way out that keeps the healthy jobs:
+
+* **Cancel does nothing** — the job is stuck inside the spooler, not in the UI.
+* **Restarting the Print Spooler service** throws away every queued document, including
+  the forty healthy ones behind the bad job.
+* **Hand-deleting** `C:\Windows\System32\spool\PRINTERS` needs an elevated console, a
+  stopped service and a steady hand: remove the wrong file and the driver's leftovers
+  wedge the queue again on the next print.
+
+So people reboot, reinstall drivers, or call support — for what is really one poisoned
+job.
+
+**This tool shows the queue and removes exactly what is stuck**, backs the spool files up
+before anything bulk happens, and puts them back in one click if the wrong thing went.
+
+## Screenshots
+
+**Dark theme**
+
+![Main window in the dark theme](docs/screenshots/main-dark.png)
+
+**Light theme**
+
+![Main window in the light theme](docs/screenshots/main-light.png)
+
+Both come from the settings row (*Theme*) or from `/theme=dark|light`; *Follow system*
+picks up the Windows setting live.
 
 ## What it does
 

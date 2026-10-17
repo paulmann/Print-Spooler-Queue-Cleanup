@@ -74,6 +74,10 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     needs: [mingw-cross, msvc]
+    # records every published tag under Deployments, with the release page as URL
+    environment:
+      name: release
+      url: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
     permissions:
       contents: write
     steps:
