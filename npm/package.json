@@ -1,0 +1,51 @@
+{
+  "name": "print-spooler-queue-cleanup",
+  "version": "5.1.1",
+  "description": "Fix a stuck Windows print queue: see every job, delete the one that wedges it, clear all, pause or restart the spooler - one self-contained .exe, no .NET.",
+  "keywords": [
+    "print-spooler",
+    "spooler",
+    "printer",
+    "printing",
+    "print-queue",
+    "windows",
+    "win32",
+    "troubleshooting",
+    "sysadmin",
+    "cli",
+    "portable",
+    "no-dependencies"
+  ],
+  "homepage": "https://github.com/paulmann/Print-Spooler-Queue-Cleanup#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paulmann/Print-Spooler-Queue-Cleanup.git"
+  },
+  "bugs": {
+    "url": "https://github.com/paulmann/Print-Spooler-Queue-Cleanup/issues"
+  },
+  "author": "Mikhail Deynekin <icons@Deynekin.com> (https://Deynekin.com)",
+  "license": "SEE LICENSE IN LICENSE",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "engines": {
+    "node": ">=16.17"
+  },
+  "bin": {
+    "spooler-cleanup": "bin/spooler-cleanup.js",
+    "print-spooler-queue-cleanup": "bin/spooler-cleanup.js"
+  },
+  "files": [
+    "bin/spooler-cleanup.js",
+    "bin/SpoolerCleanup.exe",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "prepack": "node prepare.js"
+  }
+}

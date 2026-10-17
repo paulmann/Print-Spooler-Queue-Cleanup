@@ -79,7 +79,7 @@ same executable. Copy the exe anywhere and it runs.
 
 ## Quick start
 
-1. Download `SpoolerCleanup.exe` from [Releases](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/releases) (or build it, see [BUILD](./docs/BUILD.md)).
+1. Download `SpoolerCleanup.exe` from [Releases](https://github.com/paulmann/Print-Spooler-Queue-Cleanup/releases) (or build it, see [BUILD](./docs/BUILD.md)) — the same binary is also on npm: `npx print-spooler-queue-cleanup --help`.
 2. Run it. On a new machine the setup wizard asks: install (for me / for all users, folder,
    shortcuts, autostart) **or** run once without installing.
 3. The main window shows every queued job. Select → *Delete selected*, or *Clear all jobs*

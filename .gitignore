@@ -2,3 +2,4 @@ dist/
 .ragraf/
 *.obj
 *.res
+npm/bin/*.exe
