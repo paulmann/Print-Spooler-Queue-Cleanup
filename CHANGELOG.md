@@ -6,6 +6,20 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [5.1.1] — 2026-10-17
+
+**The command line works through pipes.** `SpoolerCleanup.exe` is a GUI-subsystem
+program: when a spawner handed it a pipe (node, CI, `| findstr`), it inherited the handle
+and then threw it away by reattaching stdout to the parent console — every CLI command
+printed nothing. Output now goes to whatever handle the process actually has, in UTF-8
+for pipes and files and in the console codepage for a real console.
+
+### Fixed
+
+- `/list`, `/status`, `/help`, `/purge` produced no output when stdout was redirected or
+  piped (this is what made the tool unusable from `npx` or a CI step).
+- Non-ASCII CLI output through a pipe is UTF-8 now instead of the OEM console codepage.
+
 ## [5.1.0] — 2026-10-17
 
 **The interface is selectable and the installer works again.** 5.0.0 shipped a Setup
@@ -590,6 +604,7 @@ three-command mental model and makes it safe to run unattended on a production p
 
 - Initial PowerShell and batch implementations of stop → delete → restart.
 
+[5.1.1]: https://github.com/paulmann/Print-Spooler-Queue-Cleanup/releases/tag/v5.1.1
 [5.1.0]: https://github.com/paulmann/Print-Spooler-Queue-Cleanup/releases/tag/v5.1.0
 [4.0.1]: https://github.com/paulmann/Print-Spooler-Queue-Cleanup/releases/tag/v4.0.1
 [4.0.0]: https://github.com/paulmann/Print-Spooler-Queue-Cleanup/releases/tag/v4.0.0

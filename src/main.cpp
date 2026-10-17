@@ -20,12 +20,15 @@ namespace {
 
 void ConsoleWrite(const std::wstring& s) {
     HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
-    if (h == INVALID_HANDLE_VALUE) return;
+    if (!h || h == INVALID_HANDLE_VALUE) return;
     DWORD written = 0;
     std::wstring out = s + L"\n";
-    // console expects the active codepage; convert wide -> console CP
-    UINT cp = GetConsoleOutputCP();
-    if (!cp) cp = CP_ACP;
+    // A console wants its active OEM codepage, but a pipe or a file (node, CI,
+    // that redirect to a file) wants UTF-8: encoding to the console CP there
+    // produces mojibake.
+    DWORD mode = 0;
+    UINT cp = GetConsoleMode(h, &mode) ? GetConsoleOutputCP() : CP_UTF8;
+    if (!cp) cp = CP_UTF8;
     int n = WideCharToMultiByte(cp, 0, out.c_str(), -1, nullptr, 0, nullptr, nullptr);
     std::string buf((size_t)n, '\0');
     WideCharToMultiByte(cp, 0, out.c_str(), -1, buf.data(), n, nullptr, nullptr);
@@ -33,6 +36,12 @@ void ConsoleWrite(const std::wstring& s) {
 }
 
 bool AttachParentConsole() {
+    // A GUI-subsystem process gets no console handles from Explorer, but it does inherit
+    // the pipes a spawner hands it (node, CI). Only attach to the parent console when
+    // there is no usable stdout yet: freopen("CONOUT$") would drop the inherited pipe
+    // and the CLI output would silently go nowhere.
+    HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (out && out != INVALID_HANDLE_VALUE) return true;
     if (AttachConsole(ATTACH_PARENT_PROCESS)) {
         freopen("CONOUT$", "w", stdout);
         return true;
