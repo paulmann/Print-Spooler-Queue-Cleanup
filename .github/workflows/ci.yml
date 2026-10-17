@@ -118,6 +118,12 @@ jobs:
           # (NODE_AUTH_TOKEN is not set), and npm could answer ENEEDAUTH before it ever
           # looks at the OIDC token. The default registry is registry.npmjs.org anyway.
           node-version: 24          # trusted publishing needs node >= 22.14 and npm >= 11.5.1
+      - name: Show toolchain and OIDC availability
+        run: |
+          node --version
+          npm --version
+          if [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then echo "OIDC request URL: present"; else echo "OIDC request URL: MISSING"; fi
+          npm config get registry
       - name: Check that the tag matches npm/package.json
         run: |
           VER=${GITHUB_REF_NAME#v}
