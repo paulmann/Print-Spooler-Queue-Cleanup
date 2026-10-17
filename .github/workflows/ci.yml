@@ -98,3 +98,36 @@ jobs:
         with:
           files: dist/SpoolerCleanup-${{ env.VER }}-x64.exe
           generate_release_notes: true
+
+  npm:
+    name: Publish to npm
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs: [release]
+    # Publishing needs no stored secret: npm accepts the GitHub OIDC token of THIS workflow
+    # (configure the trusted publisher on npmjs.com: paulmann / Print-Spooler-Queue-Cleanup / ci.yml).
+    # A granular token in NPM_TOKEN is only a fallback and disappears in January 2027.
+    permissions:
+      id-token: write   # OIDC token for trusted publishing (no long-lived npm token)
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24          # trusted publishing needs node >= 22.14 and npm >= 11.5.1
+          registry-url: 'https://registry.npmjs.org'
+      - name: Check that the tag matches npm/package.json
+        run: |
+          VER=${GITHUB_REF_NAME#v}
+          PKG=$(node -p "require('./npm/package.json').version")
+          echo "tag=$VER package=$PKG"
+          if [ "$VER" != "$PKG" ]; then
+            echo "::error::tag v$VER does not match npm/package.json ($PKG) - bump the package first"
+            exit 1
+          fi
+      - name: Fetch the released binary into the package
+        working-directory: npm
+        run: node prepare.js
+      - name: Publish (trusted publishing via OIDC, provenance is automatic)
+        working-directory: npm
+        run: npm publish --access public
