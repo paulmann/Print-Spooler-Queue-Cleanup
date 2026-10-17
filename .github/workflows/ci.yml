@@ -6,6 +6,7 @@ on:
     tags: ["v*"]
   pull_request:
     branches: [main]
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -139,3 +140,22 @@ jobs:
       - name: Publish (trusted publishing via OIDC, provenance is automatic)
         working-directory: npm
         run: npm publish --access public
+
+  npm-diag:
+    name: npm toolchain probe
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Versions and OIDC
+        run: |
+          echo "node: $(node --version)"
+          echo "npm:  $(npm --version)"
+          if [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then echo "OIDC: present"; else echo "OIDC: MISSING"; fi
+          npm config list
