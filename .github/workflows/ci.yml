@@ -127,11 +127,12 @@ jobs:
           npm config get registry
       - name: Check that the tag matches npm/package.json
         run: |
-          VER=${GITHUB_REF_NAME#v} if [ "$VER" = "main" ] || [ -z "$VER" ]; then VER=$(node -p "require('./npm/package.json').version"); fi
           PKG=$(node -p "require('./npm/package.json').version")
-          echo "tag=$VER package=$PKG"
-          if [ "$VER" != "$PKG" ]; then
-            echo "::error::tag v$VER does not match npm/package.json ($PKG) - bump the package first"
+          REF="${GITHUB_REF_NAME#v}"
+          if [ "$REF" = "main" ] || [ -z "$REF" ]; then REF="$PKG"; fi
+          echo "ref=$REF package=$PKG"
+          if [ "$REF" != "$PKG" ]; then
+            echo "::error::tag v$REF does not match npm/package.json ($PKG) - bump the package first"
             exit 1
           fi
       - name: Fetch the released binary into the package
